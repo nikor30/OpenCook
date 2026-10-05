@@ -43,6 +43,14 @@ Event: `eiid 1` cooking-finished
 Actions: set/get-setting, toggle weighing, get remaining time, set duration/temp/speed, tare
 (aiids noch nicht erfasst → Phase 1).
 
+## Netzwerk (beobachtet 2026-10-05, Gerät im Standby)
+
+- Antwortet auf ICMP und auf den miIO-Hello (UDP 54321, 32-Byte-Antwort mit Device-ID und Stamp).
+- Das Checksum-Feld der Hello-Antwort ist weder Null noch `ff…`, taugt aber **nicht** als Token:
+  ein damit verschlüsseltes `miIO.info` bleibt unbeantwortet. Der Token muss aus der Cloud kommen.
+- TCP 1–65535: alle Ports geschlossen (RST). Kein ADB (5555), kein HTTP, kein RTSP → Q8 für TCP
+  beantwortet. UDP-Scan steht noch aus.
+
 ## Offene Fragen
 
 Q1–Q8 siehe KICKSTART.md §1. Antworten werden hier mit Datum und Experiment-Referenz (E1–E6) nachgetragen.

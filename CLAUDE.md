@@ -43,3 +43,5 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
   Der pre-commit-Hook scannt nur Staged-Änderungen; die komplette Historie prüft der CI-Job `secrets`.
 - 2026-10-05: `miiocli genericmiot` gibt es nur auf python-miio master (0.6 dev), nicht in 0.5.x → Pin in
   `.devcontainer/post-create.sh`.
+- 2026-10-05: Gerät hat keinen offenen TCP-Port (kein ADB/HTTP); nur miIO UDP 54321. Hello-Antwort liefert keinen
+  brauchbaren Token → Token per Cloud-Extractor nötig. IP steht in `.env` (nicht im Repo).
