@@ -100,6 +100,7 @@
     <main>
       <nav id="tabs"></nav>
       <h1 id="heading">Neues Rezept</h1>
+      <section class="card notice warn" id="draft-notes" hidden></section>
 
       <section class="card">
         <div class="grid2">
@@ -502,11 +503,16 @@
         );
       }
 
+      // Imported drafts already carry an id, so "has an id" does not mean "stored".
+      let persisted = false;
+
       async function save() {
         const body = fromForm();
-        const result = body.id
+        const result = persisted
           ? await api(`/api/recipes/${body.id}`, { method: "PUT", json: body })
           : await api("/api/recipes", { method: "POST", json: body });
+        persisted = true;
+        $("draft-notes").hidden = true;
         recipe = result.recipe;
         // The inputs must edit the saved copy from now on.
         renderIngredients();
@@ -555,8 +561,32 @@
       }
 
       async function init() {
-        const id = new URLSearchParams(location.search).get("id");
-        if (id) {
+        const params = new URLSearchParams(location.search);
+        const id = params.get("id");
+        let draft = null;
+        if (params.has("draft")) {
+          try {
+            draft = JSON.parse(sessionStorage.getItem("opencook-import"));
+            sessionStorage.removeItem("opencook-import");
+          } catch {}
+        }
+        if (draft) {
+          recipe = draft.recipe;
+          $("heading").textContent = `Import: ${recipe.title}`;
+          showProblems(draft.problems);
+          $("draft-notes").replaceChildren(
+            el("strong", {}, "Umgewandelt – bitte prüfen und dann speichern."),
+            draft.warnings.length
+              ? el(
+                  "ul",
+                  {},
+                  draft.warnings.map((w) => el("li", {}, w)),
+                )
+              : null,
+          );
+          $("draft-notes").hidden = false;
+        } else if (id) {
+          persisted = true;
           const result = await api(`/api/recipes/${id}`);
           recipe = result.recipe;
           // The editor works on Bimbi's 20 levels; convert other scales once.

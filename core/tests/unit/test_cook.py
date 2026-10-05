@@ -183,3 +183,18 @@ def test_manual_runs_during_cook_mode_count_as_the_recipe(tmp_path: Path) -> Non
             time.sleep(0.1)
 
     assert [r.name for r in history.stats().recipes] == ["Kartoffelsuppe"]
+
+
+def test_text_import_returns_a_preview_without_saving(tmp_path: Path) -> None:
+    text = "Suppe\nZutaten\n500 ml Wasser\nZubereitung\n1. 10 Min./100°C/Stufe 1 kochen."
+
+    with client(tmp_path, FakeReader()) as c:
+        preview = c.post("/api/import/text", json={"text": text}).json()
+        empty = c.post("/api/import/text", json={"text": " "})
+        listed = c.get("/api/recipes").json()
+
+    assert preview["recipe"]["title"] == "Suppe"
+    assert preview["recipe"]["steps"][0]["machine"]["temp_c"] == 100
+    assert preview["problems"] == []
+    assert empty.status_code == 422
+    assert listed == []

@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from opencook.converters import thermomix_text
 from opencook.drivers.base import CookerState
 from opencook.recipes import c3os
 from opencook.recipes.models import MachineStep, Recipe, WaitStep
@@ -27,6 +28,17 @@ class CookView(BaseModel):
     run: CookRun
     settings: c3os.ManualSettings | None
     wait_remaining_s: int | None
+
+
+class TextImport(BaseModel):
+    text: str = Field(max_length=50_000)
+    origin: str | None = Field(default=None, max_length=200)
+
+
+class ImportPreview(BaseModel):
+    recipe: Recipe
+    warnings: list[str]
+    problems: list[str]
 
 
 class CookStart(BaseModel):
@@ -98,6 +110,19 @@ def make_router(recipes: RecipeStore, cook: CookController) -> APIRouter:
             raise HTTPException(409, "Ein Rezept mit dieser ID gibt es schon.")
         recipes.put(recipe)
         return out(recipe)
+
+    @router.post("/import/text")
+    async def import_text(body: TextImport) -> ImportPreview:
+        """Converts pasted text into a recipe preview; nothing is saved."""
+        try:
+            result = thermomix_text.convert(body.text, body.origin)
+        except ValueError as err:
+            raise HTTPException(422, str(err)) from err
+        return ImportPreview(
+            recipe=result.recipe,
+            warnings=result.warnings,
+            problems=c3os.problems(result.recipe),
+        )
 
     @router.get("/recipes/{recipe_id}")
     async def get_recipe(recipe_id: UUID) -> RecipeOut:
