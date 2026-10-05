@@ -56,4 +56,7 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
 - 2026-10-05: E6: set_properties und alle Aktionen (inkl. start-cook) antworten code 0, bewirken aber NICHTS am
   Gerät. Lokale Steuerung über die Spec-Aktionen ist damit vorerst nicht belegt → Phase 2a/2b (Plugin, App↔Cloud)
   muss zeigen, welche Befehle die App wirklich schickt.
+- 2026-10-05: Laut Nutzer kann die Mi-Home-App das Gerät NICHT steuern, nur Rezepte favorisieren → Phase 2a
+  (Plugin-Analyse für Steuerbefehle) entfällt. Neuer Ansatz: Rezept-Sync Gerät↔Cloud beobachten (Domains, TLS,
+  Pinning) und prüfen, ob ein lokaler Cloud-Ersatz eigene Rezepte ausliefern kann. Geräte-Spitzname: „Bimbi“.
 
