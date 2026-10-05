@@ -15,9 +15,15 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "PT", "RUF", "AS
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["core/opencook", "core/tests"]  # add "tools" once it contains Python
+files = ["core/opencook", "core/tests", "tools"]
 mypy_path = ["core"]
 explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+# python-miio is untyped and not installed in CI: treat it as Any everywhere.
+module = ["miio", "miio.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
 testpaths = ["core/tests"]
