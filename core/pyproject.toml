@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "opencook"
+description = "Local, cloud-free control of the Xiaomi Smart Cooking Robot (chunmi.mfcp.c3os)"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+dynamic = ["version"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "hypothesis>=6.100",
+    "mypy>=1.11",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.16",
+]
+
+[tool.hatch.version]
+path = "opencook/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["opencook"]
