@@ -42,6 +42,28 @@ def test_api_has_no_write_endpoints() -> None:
     assert methods <= {"GET", "HEAD"}
 
 
+def test_stats_endpoint_and_page() -> None:
+    reader = FakeReader(
+        CookerState(
+            reachable=True,
+            updated_at=datetime.now(UTC),
+            status=1,
+            cook_id=1577,
+            cook_type=4,
+            cook_name="Kartoffelbrei",
+        )
+    )
+
+    with TestClient(create_app(reader)) as client:
+        client.get("/api/state")
+        stats = client.get("/api/stats").json()
+        page = client.get("/stats")
+
+    assert stats["total"] == 1
+    assert stats["recipes"][0]["name"] == "Kartoffelbrei"
+    assert page.status_code == 200
+
+
 def test_index_is_served() -> None:
     reader = FakeReader(CookerState(reachable=False, updated_at=datetime.now(UTC)))
 

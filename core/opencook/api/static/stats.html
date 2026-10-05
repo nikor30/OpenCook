@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCook – Statistik</title>
+    <style>
+      :root {
+        --bg: #f6f5f2;
+        --card: #ffffff;
+        --text: #1d1d1b;
+        --muted: #6b6a65;
+        --line: #e4e2dc;
+        --bar: #b4541a;
+        --ok: #2f7d4f;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #161614;
+          --card: #22211e;
+          --text: #edece8;
+          --muted: #a3a29c;
+          --line: #34332f;
+          --bar: #f08a4b;
+          --ok: #5cbf86;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.4 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+      h2 {
+        margin: 0 0 12px;
+        font-size: 1rem;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      a {
+        color: inherit;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .kpi .value {
+        font-size: 1.8rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .kpi .label {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 6px 4px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 0.85rem;
+      }
+      td.num,
+      th.num {
+        text-align: right;
+      }
+      .bars {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 96px;
+      }
+      .bars div {
+        flex: 1;
+        background: var(--bar);
+        border-radius: 2px 2px 0 0;
+        min-height: 1px;
+      }
+      .bars div.zero {
+        background: var(--line);
+      }
+      .axis {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 0.75rem;
+        margin-top: 4px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .empty {
+        color: var(--muted);
+        text-align: center;
+        padding: 12px 0;
+      }
+      @media (max-width: 480px) {
+        .kpi .value {
+          font-size: 1.4rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Statistik</h1>
+        <a href="/">← Live-Status</a>
+      </header>
+
+      <section class="card kpis">
+        <div class="kpi">
+          <div class="value" id="total">–</div>
+          <div class="label">Kochvorgänge</div>
+        </div>
+        <div class="kpi">
+          <div class="value" id="completed">–</div>
+          <div class="label">davon fertig</div>
+        </div>
+        <div class="kpi">
+          <div class="value" id="time">–</div>
+          <div class="label">Kochzeit gesamt</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Am häufigsten gekocht</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Rezept</th>
+              <th class="num">Anzahl</th>
+              <th class="num">Kochzeit</th>
+              <th class="num">Zuletzt</th>
+            </tr>
+          </thead>
+          <tbody id="recipes"></tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Letzte 30 Tage</h2>
+        <div class="bars" id="days"></div>
+        <div class="axis"><span id="day-first"></span><span>heute</span></div>
+      </section>
+
+      <section class="card">
+        <h2>Uhrzeit</h2>
+        <div class="bars" id="hours"></div>
+        <div class="axis">
+          <span>0 Uhr</span><span>12 Uhr</span><span>23 Uhr</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Zuletzt</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Start</th>
+              <th>Rezept</th>
+              <th class="num">Kochzeit</th>
+              <th>Ergebnis</th>
+            </tr>
+          </thead>
+          <tbody id="recent"></tbody>
+        </table>
+      </section>
+
+      <h1>Reinigung</h1>
+
+      <section class="card kpis">
+        <div class="kpi">
+          <div class="value" id="clean-total">–</div>
+          <div class="label">Reinigungen</div>
+        </div>
+        <div class="kpi">
+          <div class="value" id="clean-last">–</div>
+          <div class="label">zuletzt gereinigt</div>
+        </div>
+        <div class="kpi">
+          <div class="value" id="clean-since">–</div>
+          <div class="label">Kochvorgänge seither</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Programme</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Programm</th>
+              <th class="num">Anzahl</th>
+              <th class="num">davon fertig</th>
+              <th class="num">Zuletzt</th>
+            </tr>
+          </thead>
+          <tbody id="clean-programs"></tbody>
+        </table>
+      </section>
+
+      <p class="muted">
+        Ein Kochvorgang reicht vom ersten Start bis 15 Minuten Ruhe oder bis ein
+        anderes Rezept startet. Kochzeit zählt nur Zeit mit laufender Maschine.
+        Reinigungsprogramme (Name enthält „Reinigung“) zählen nur unter
+        Reinigung.
+      </p>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const OUTCOME = {
+        completed: "fertig",
+        cancelled: "abgebrochen",
+        error: "Fehler",
+        running: "läuft",
+      };
+      const duration = (s) => {
+        const m = Math.round(s / 60);
+        return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+      };
+      const dateTime = (iso) =>
+        new Date(iso).toLocaleString("de-DE", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      const daysAgo = (iso) => {
+        const startOfDay = (d) =>
+          new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const days = Math.round(
+          (startOfDay(new Date()) - startOfDay(new Date(iso))) / 86400000,
+        );
+        return days === 0
+          ? "heute"
+          : days === 1
+            ? "gestern"
+            : `vor ${days} Tagen`;
+      };
+      const cell = (text, cls) => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        if (cls) td.className = cls;
+        return td;
+      };
+      const row = (cells) => {
+        const tr = document.createElement("tr");
+        tr.append(...cells);
+        return tr;
+      };
+      const emptyRow = (cols, text) => {
+        const td = cell(text, "empty");
+        td.colSpan = cols;
+        return row([td]);
+      };
+      function bars(el, values, titles) {
+        const max = Math.max(1, ...values);
+        el.replaceChildren(
+          ...values.map((v, i) => {
+            const d = document.createElement("div");
+            d.style.height = `${(v / max) * 100}%`;
+            if (!v) d.className = "zero";
+            d.title = `${titles[i]}: ${v}`;
+            return d;
+          }),
+        );
+      }
+
+      async function load() {
+        const r = await fetch("/api/stats", { cache: "no-store" });
+        const s = await r.json();
+        $("total").textContent = s.total;
+        $("completed").textContent = s.completed;
+        $("time").textContent = duration(s.cooking_s);
+
+        $("recipes").replaceChildren(
+          ...(s.recipes.length
+            ? s.recipes.map((x) =>
+                row([
+                  cell(x.name),
+                  cell(x.count, "num"),
+                  cell(duration(x.cooking_s), "num"),
+                  cell(dateTime(x.last_cooked_at), "num"),
+                ]),
+              )
+            : [emptyRow(4, "Noch nichts gekocht, seit OpenCook mitzählt.")]),
+        );
+
+        const days = s.last_30_days;
+        bars(
+          $("days"),
+          days.map((d) => d.count),
+          days.map((d) => new Date(d.day).toLocaleDateString("de-DE")),
+        );
+        $("day-first").textContent = new Date(days[0].day).toLocaleDateString(
+          "de-DE",
+          {
+            day: "2-digit",
+            month: "2-digit",
+          },
+        );
+        bars(
+          $("hours"),
+          s.by_hour,
+          s.by_hour.map((_, h) => `${h} Uhr`),
+        );
+
+        $("recent").replaceChildren(
+          ...(s.recent.length
+            ? s.recent.map((x) =>
+                row([
+                  cell(dateTime(x.started_at)),
+                  cell(x.name),
+                  cell(duration(x.cooking_s), "num"),
+                  cell(OUTCOME[x.outcome] ?? x.outcome),
+                ]),
+              )
+            : [emptyRow(4, "–")]),
+        );
+
+        const c = s.cleaning;
+        $("clean-total").textContent = c.total;
+        $("clean-last").textContent = c.last_at ? daysAgo(c.last_at) : "nie";
+        $("clean-since").textContent = c.cooks_since_last;
+        $("clean-programs").replaceChildren(
+          ...(c.programs.length
+            ? c.programs.map((x) =>
+                row([
+                  cell(x.name),
+                  cell(x.count, "num"),
+                  cell(x.completed, "num"),
+                  cell(dateTime(x.last_cooked_at), "num"),
+                ]),
+              )
+            : [emptyRow(4, "Noch keine Reinigung erfasst.")]),
+        );
+      }
+      load();
+      setInterval(load, 30000);
+    </script>
+  </body>
+</html>

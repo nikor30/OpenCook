@@ -11,6 +11,8 @@ dynamic = ["version"]
 dependencies = [
     "fastapi>=0.115",
     "pydantic>=2.8",
+    "sqlmodel>=0.0.22",
+    "tzdata>=2024.1",
     # `genericmiot` and current fixes only exist on master; 0.5.x is outdated.
     "python-miio @ git+https://github.com/rytilahti/python-miio.git@9a00e0888ef85f8d8d84888cabd9e46d1b0a18df",
     "uvicorn[standard]>=0.30",
