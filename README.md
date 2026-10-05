@@ -49,8 +49,8 @@ Voraussetzungen: Docker mit Compose auf einem Rechner im selben Netz wie das Ger
 einem Raspberry Pi), dazu IP-Adresse und Token des Geräts.
 
 ```bash
-git clone https://github.com/nikor30/cookingrobots.git
-cd cookingrobots
+git clone https://github.com/nikor30/OpenCook.git
+cd OpenCook
 docker compose up -d --build
 ```
 
