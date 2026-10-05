@@ -10,7 +10,8 @@ COPY core/ ./core/
 RUN pip install --no-cache-dir ./core
 
 RUN mkdir -p /data && chown nobody /data
-ENV OC_DB_PATH=/data/opencook.db
+ENV OC_DB_PATH=/data/opencook.db \
+    OC_CONFIG_PATH=/data/config.json
 VOLUME /data
 
 USER nobody

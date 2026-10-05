@@ -30,7 +30,7 @@ Fahrplan & Phasen: **KICKSTART.md**. Protokollwissen: **docs/protocol/xiaomi-c3o
 
 ## Befehle
 ```bash
-docker compose up -d --build            # Read-only-Webansicht auf :8080 (braucht .env)
+docker compose up -d --build            # Webansicht auf :8080 (IP/Token unter /settings oder in .env)
 docker compose --profile sim up        # alles mit Simulator (ab Phase 3)
 pip install -e "core[dev]"             # Dev-Umgebung (im Devcontainer automatisch)
 pytest -q core/tests                   # Backend-Tests
@@ -69,3 +69,8 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
   Rezept = 1 Vorgang) und speichert sie in SQLite (`OC_DB_PATH`, Docker-Volume `opencook-data`). `/api/stats` + Seite `/stats`.
   Reinigungsprogramme (z. B. „Tiefenreinigung“, cook-id 15, cook-type 0 wie manuelle Läufe) nur am Namen erkennbar →
   eigene Reinigungsstatistik (`is_cleaning`, Name enthält „reinig“/„clean“).
+- 2026-10-05: Einstellungen im Web-UI (`/settings`): IP, Token, Debug-Werte. Gespeichert in `OC_CONFIG_PATH`
+  (Docker: /data/config.json, 0600), Vorrang vor .env. Die API gibt den Token nie zurück, nur die letzten 4 Zeichen.
+  Einzige schreibende Route ist `PUT /api/settings` (Test sichert das ab); das Gerät bleibt read-only.
+- 2026-10-05: README-Screenshots: `tools/screenshots.py` im Playwright-Image; ersetzt den Token-Hinweis und
+  nutzt Demo-Statistik. Test-Konstanten nicht `TOKEN = "<32 hex>"` nennen – sonst schlägt gitleaks an.

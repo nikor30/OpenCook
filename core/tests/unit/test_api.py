@@ -1,9 +1,14 @@
+import stat
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from opencook.api.app import create_app
-from opencook.drivers.base import CookerState
+from opencook.drivers.base import CookerReader, CookerState
+from opencook.settings import DeviceSettings, SettingsStore
+
+FAKE_KEY = "ab" * 16  # obviously fake device token
 
 
 class FakeReader:
@@ -16,17 +21,38 @@ class FakeReader:
         return self.state
 
 
-def test_state_endpoint_returns_polled_state() -> None:
-    state = CookerState(
+def cooking(name: str = "Kartoffelbrei") -> CookerState:
+    return CookerState(
         reachable=True,
-        updated_at=datetime(2026, 10, 5, tzinfo=UTC),
+        updated_at=datetime.now(UTC),
         status=1,
         status_label="Cooking",
         remaining_s=42,
+        cook_id=1577,
+        cook_type=4,
+        cook_name=name,
     )
-    reader = FakeReader(state)
 
-    with TestClient(create_app(reader)) as client:
+
+def configured(tmp_path: Path) -> SettingsStore:
+    return SettingsStore(tmp_path / "config.json", DeviceSettings(ip="192.0.2.10", token=FAKE_KEY))
+
+
+def make_client(
+    reader: CookerReader, settings_store: SettingsStore, built: list[DeviceSettings] | None = None
+) -> TestClient:
+    def factory(settings: DeviceSettings) -> CookerReader:
+        if built is not None:
+            built.append(settings)
+        return reader
+
+    return TestClient(create_app(reader_factory=factory, settings_store=settings_store))
+
+
+def test_state_endpoint_returns_polled_state(tmp_path: Path) -> None:
+    reader = FakeReader(cooking())
+
+    with make_client(reader, configured(tmp_path)) as client:
         body = client.get("/api/state").json()
 
     assert reader.calls >= 1
@@ -34,27 +60,24 @@ def test_state_endpoint_returns_polled_state() -> None:
     assert body["remaining_s"] == 42
 
 
-def test_api_has_no_write_endpoints() -> None:
-    app = create_app(FakeReader(CookerState(reachable=False, updated_at=datetime.now(UTC))))
-
-    methods = {m for route in app.routes for m in getattr(route, "methods", set())}
-
-    assert methods <= {"GET", "HEAD"}
-
-
-def test_stats_endpoint_and_page() -> None:
-    reader = FakeReader(
-        CookerState(
-            reachable=True,
-            updated_at=datetime.now(UTC),
-            status=1,
-            cook_id=1577,
-            cook_type=4,
-            cook_name="Kartoffelbrei",
-        )
+def test_only_settings_are_writable(tmp_path: Path) -> None:
+    app = create_app(
+        reader_factory=lambda _: FakeReader(cooking()), settings_store=configured(tmp_path)
     )
 
-    with TestClient(create_app(reader)) as client:
+    writable = {
+        (getattr(route, "path", None), method)
+        for route in app.routes
+        for method in getattr(route, "methods", set())
+        if method not in {"GET", "HEAD"}
+    }
+
+    # The cooker itself is never written to; only the local configuration is.
+    assert writable == {("/api/settings", "PUT")}
+
+
+def test_stats_endpoint_and_page(tmp_path: Path) -> None:
+    with make_client(FakeReader(cooking()), configured(tmp_path)) as client:
         client.get("/api/state")
         stats = client.get("/api/stats").json()
         page = client.get("/stats")
@@ -64,11 +87,86 @@ def test_stats_endpoint_and_page() -> None:
     assert page.status_code == 200
 
 
-def test_index_is_served() -> None:
-    reader = FakeReader(CookerState(reachable=False, updated_at=datetime.now(UTC)))
+def test_pages_and_assets_are_served(tmp_path: Path) -> None:
+    with make_client(FakeReader(cooking()), configured(tmp_path)) as client:
+        responses = {
+            path: client.get(path)
+            for path in ["/", "/stats", "/settings", "/static/app.css", "/static/icons/stats.svg"]
+        }
 
-    with TestClient(create_app(reader)) as client:
-        response = client.get("/")
+    assert {path: r.status_code for path, r in responses.items()} == dict.fromkeys(responses, 200)
+    assert 'id="tabs"' in responses["/settings"].text
+
+
+def test_settings_never_return_the_token(tmp_path: Path) -> None:
+    with make_client(FakeReader(cooking()), configured(tmp_path)) as client:
+        body = client.get("/api/settings").json()
+
+    assert FAKE_KEY not in str(body)
+    assert body == {
+        "ip": "192.0.2.10",
+        "token_set": True,
+        "token_hint": "…abab",
+        "show_debug": False,
+        "configured": True,
+    }
+
+
+def test_changing_the_device_reconnects_and_persists(tmp_path: Path) -> None:
+    store = configured(tmp_path)
+    built: list[DeviceSettings] = []
+    new_token = "f" * 32
+
+    with make_client(FakeReader(cooking()), store, built) as client:
+        response = client.put("/api/settings", json={"ip": "192.0.2.20", "token": new_token})
 
     assert response.status_code == 200
-    assert "Bimbi" in response.text
+    assert response.json()["reachable"] is True
+    assert built[-1] == DeviceSettings(ip="192.0.2.20", token=new_token)
+    assert store.load().ip == "192.0.2.20"
+    assert stat.S_IMODE((tmp_path / "config.json").stat().st_mode) == 0o600
+
+
+def test_empty_token_keeps_the_stored_one(tmp_path: Path) -> None:
+    store = configured(tmp_path)
+
+    with make_client(FakeReader(cooking()), store) as client:
+        client.put("/api/settings", json={"ip": "192.0.2.30", "token": ""})
+
+    assert store.load() == DeviceSettings(ip="192.0.2.30", token=FAKE_KEY)
+
+
+def test_invalid_token_is_rejected(tmp_path: Path) -> None:
+    store = configured(tmp_path)
+
+    with make_client(FakeReader(cooking()), store) as client:
+        response = client.put("/api/settings", json={"token": "not-a-token"})
+
+    assert response.status_code == 422
+    assert "32 Hex-Zeichen" in response.text
+    assert store.load().token == FAKE_KEY
+
+
+def test_debug_toggle_does_not_reconnect(tmp_path: Path) -> None:
+    store = configured(tmp_path)
+    built: list[DeviceSettings] = []
+
+    with make_client(FakeReader(cooking()), store, built) as client:
+        client.put("/api/settings", json={"show_debug": True})
+        shown = client.get("/api/settings").json()["show_debug"]
+
+    assert shown is True
+    assert len(built) == 1  # only the reader created at startup
+
+
+def test_unconfigured_device_is_reported_as_unreachable(tmp_path: Path) -> None:
+    store = SettingsStore(tmp_path / "config.json", DeviceSettings())
+    built: list[DeviceSettings] = []
+
+    with make_client(FakeReader(cooking()), store, built) as client:
+        state = client.get("/api/state").json()
+        settings = client.get("/api/settings").json()
+
+    assert built == []
+    assert state["reachable"] is False
+    assert settings["configured"] is False
