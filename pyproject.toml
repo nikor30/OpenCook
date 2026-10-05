@@ -20,8 +20,8 @@ mypy_path = ["core"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-# python-miio is untyped and not installed in CI: treat it as Any everywhere.
-module = ["miio", "miio.*"]
+# Not installed in CI (python-miio is also untyped): treat them as Any everywhere.
+module = ["miio", "miio.*", "playwright", "playwright.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 
