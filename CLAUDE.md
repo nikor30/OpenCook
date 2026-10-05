@@ -8,7 +8,7 @@ FastAPI-Core + React-Web-GUI + Home Assistant (MQTT Discovery) + Rezept-Konverte
 Fahrplan & Phasen: **KICKSTART.md**. Protokollwissen: **docs/protocol/xiaomi-c3os.md**.
 
 ## Status
-- Aktuelle Phase: 1 (Recon) – Phase 0 (Setup) erledigt 2026-10-05; Read-only-Webansicht läuft (core + Statusseite)
+- Aktuelle Phase: 1 (Recon) – Phase 0 (Setup) erledigt 2026-10-05; Read-only-Webansicht läuft (core + Statusseite), HA-Integration `custom_components/opencook` (read-only)
 - Offene Kernfragen: Q1 recipe-command-Format, Q3 Rückwärtslauf per API, Q4 Speed-Mapping, Q7 Live-Gewicht
   (Details KICKSTART.md §1)
 
@@ -62,3 +62,6 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
   Pinning) und prüfen, ob ein lokaler Cloud-Ersatz eigene Rezepte ausliefern kann. Geräte-Spitzname: „Bimbi“.
 - 2026-10-05: Read-only-Webansicht: `opencook.api.app` pollt per `XiaomiC3osReader` (nur get_properties) und liefert
   `/api/state` + Statusseite unter `/`. Die API hat bewusst nur GET-Routen (Test sichert das ab).
+- 2026-10-05: HA-Integration (ADR 0004) pollt nur den Core (`/api/state`), nie das Gerät. Getestet end-to-end in einem
+  HA-Container (ghcr.io/home-assistant/home-assistant:stable, Onboarding + Config-Flow per REST). Doku: docs/ha/README.md.
+  pytest-homeassistant-custom-component lässt sich mit Python 3.13 nicht installieren (pip backtrackt endlos).
