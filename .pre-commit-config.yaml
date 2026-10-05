@@ -1,0 +1,50 @@
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.9.9
+    hooks:
+      - id: prettier
+        # Markdown is excluded on purpose: docs contain hand-aligned tables.
+        types_or: [yaml, json, javascript, jsx, ts, tsx, css, html]
+
+  - repo: local
+    hooks:
+      # Runs in the active environment (devcontainer / `pip install -e core[dev]`)
+      # so that mypy sees the real project dependencies.
+      - id: mypy
+        name: mypy --strict
+        entry: mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: conventional-commit
+        name: conventional commit message
+        entry: '^((build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._-]+\))?!?: \S|Merge |Revert ")'
+        language: pygrep
+        args: [--negate]
+        stages: [commit-msg]
