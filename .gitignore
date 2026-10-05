@@ -1,0 +1,40 @@
+# --- Secrets & RE-Material (siehe CLAUDE.md "Harte Regeln") ---
+.env
+.env.*
+!.env.example
+secrets/
+research/private/
+*.pcap*
+*.apk
+*.jsbundle
+*.bundle
+*.har
+*.mitm
+/data/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# --- Node / Web ---
+node_modules/
+web/dist/
+playwright-report/
+test-results/
+
+# --- Editor / OS ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
