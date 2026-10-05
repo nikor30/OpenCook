@@ -33,15 +33,29 @@ Event: `eiid 1` cooking-finished
 | 3    | cook-id        | uint32 | R/N     | 0–999999999                                |
 | 4    | cook-type      | uint8  | R/N     | 0 Official, 1 Single, 2 Mutable, 4 Recipe  |
 | 5    | cook-name      | string | R/N     |                                            |
-| 6–9  | reserved       | div.   | ?       | auslesen & beobachten                      |
+| 6    | property-a     | uint8  | R/N     | 0–99, Bedeutung unbekannt                  |
+| 7    | property-b     | uint16 | R/N     | 0–9999, Bedeutung unbekannt                |
+| 8    | property-c     | bool   | R/N     | Parameter von set-/get-setting             |
+| 9    | property-d     | float  | R/N     | 0–99999999, Bedeutung unbekannt            |
 | 10   | cook-duration  | uint16 | R/W/N   | 0–14400 s                                  |
 | 11   | cook-temp      | uint8  | R/W/N   | 0–180 °C                                   |
 | 12   | cook-speed     | uint8  | R/W/N   | 0–100, Mapping zu 20 Display-Stufen offen (Q4) |
 | 13   | weigh-activity | bool   | R/W/N   |                                            |
 | 14   | remaining-time | uint32 | R/N     | 0–14400                                    |
 
-Actions: set/get-setting, toggle weighing, get remaining time, set duration/temp/speed, tare
-(aiids noch nicht erfasst → Phase 1).
+| aiid | Name         | in      | out     |
+| ---- | ------------ | ------- | ------- |
+| 1    | set-setting  | piid 8  |         |
+| 2    | get-setting  |         | piid 8  |
+| 3    | switch-weigh | piid 13 |         |
+| 4    | get-time     |         | piid 14 |
+| 5    | set-duration | piid 10 |         |
+| 6    | set-temp     | piid 11 |         |
+| 7    | set-speed    | piid 12 |         |
+| 8    | set-zero     |         |         |
+
+`recipe-command` (siid 2 piid 10) hat in der Spec keine Access-Flags – es ist nur Parameter von
+`start-recipe-cook`. Lesen liefert trotzdem einen (leeren) String.
 
 ## Netzwerk (beobachtet 2026-10-05, Gerät im Standby)
 
@@ -76,6 +90,18 @@ Werte im Standby (Display an, nichts läuft):
 | 3.2 volume | 0 | | 4.13 weigh-activity | false |
 | 4.3 cook-id | 0 | | 4.14 remaining-time | 0 |
 | 4.4 cook-type | 0 | | 4.5 cook-name | `""` |
+
+## Beobachtetes Verhalten bei manuellem Kochen (2026-10-05)
+
+Details in `research/notes/experiments.md`.
+
+- Ein am Display gestarteter manueller Lauf setzt `mode` 5, `cook-name` `Handbuch`, `cook-id` 1 und
+  zählt `remaining-time` (4.14) sekündlich herunter. `left-time` (2.3) bleibt 0.
+- Statusfolge: 0 → 1 → (3 bei Pause → 1) → 11 → nach rund 14 s wieder 0.
+- `cook-duration`, `cook-temp`, `cook-speed` bleiben dabei 0: sie spiegeln **nicht** die am Display
+  eingestellten Werte.
+- Drehrichtung und Gewicht erscheinen in keiner Property; die am Display aktivierte Waage ändert
+  `weigh-activity` nicht.
 
 ## Offene Fragen
 

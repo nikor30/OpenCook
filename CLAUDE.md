@@ -48,3 +48,7 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
 - 2026-10-05: Lokaler Lesezugriff läuft. `get_properties` braucht die echte Device-ID als `did`, sonst `-4007`.
   Gerät ist Android-basiert (fw 1.0_179) und verschwindet im Standby aus dem WLAN → vor Tests aufwecken.
 - 2026-10-05: Keine Portscans mehr gegen das Gerät (bringt nichts, alle TCP-Ports zu).
+- 2026-10-05: E1–E3: Display-Läufe zeigen nur status/remaining-time (4.14); Temp/Speed/Dauer, Drehrichtung und
+  Gewicht sind NICHT lesbar. Q3/Q4/Q7 nur noch über Setzen per API (E6) klärbar. Aktionen siid 4 aiid 1–8 siehe
+  docs/protocol. Notizen: research/notes/experiments.md.
+
