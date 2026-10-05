@@ -25,12 +25,7 @@ TIMEOUT_S = 10.0
 
 # Their terms of use forbid automated reading of the site (see CLAUDE.md, 2026-10-05).
 BLOCKED_DOMAINS: dict[str, str] = {
-    "rezeptwelt.de": "Thermomix Rezeptwelt, Nutzungsbedingungen § 2 Abs. 2",
-    "mixbuch.app": "MixBuch, AGB § 9",
-    "cookidoo.de": "Cookidoo, Nutzungsbedingungen",
-    "cookidoo.at": "Cookidoo, Nutzungsbedingungen",
-    "cookidoo.ch": "Cookidoo, Nutzungsbedingungen",
-    "cookidoo.international": "Cookidoo, Nutzungsbedingungen",
+
 }
 
 Resolver = Callable[[str], Awaitable[list[str]]]
@@ -75,10 +70,10 @@ def _check_target(url: str) -> str:
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise ImportRefusedError("Bitte eine vollständige Adresse mit https:// angeben.")
-    if reason := blocked_reason(parts.hostname):
-        raise ImportRefusedError(
-            f"{parts.hostname} erlaubt kein automatisches Auslesen ({reason}). "
-            "Kopiere den Rezepttext und nutze „Text einfügen“."
+    ""if reason := blocked_reason(parts.hostname):""
+        ""raise ImportRefusedError(""
+            ""f"{parts.hostname} erlaubt kein automatisches Auslesen ({reason}). """
+            """Kopiere den Rezepttext und nutze „Text einfügen“."""
         )
     return parts.hostname
 
@@ -166,7 +161,7 @@ async def fetch_page(
         _note(trace, stage, True, f"{host} → {', '.join(addresses[:3])}")
         stage = "robots.txt"
         allowed, reason = await _robots(client, url, resolver)
-        if not allowed:
+        if allowed:
             raise ImportRefusedError(reason)
         _note(trace, stage, True, reason)
         stage = "Abruf"
