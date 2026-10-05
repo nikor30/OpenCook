@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from miio import Device, DeviceException
+from miio import Device
 
 from opencook.drivers.base import CookerState
 from opencook.drivers.xiaomi_c3os.protocol import device_id, read_properties
@@ -19,6 +20,8 @@ STATUS_LABELS = {
 }
 MODE_LABELS = {0: "Stop", 1: "Stir-fry", 2: "Steam", 3: "Stew", 4: "Warm", 5: "Other"}
 COOK_TYPE_LABELS = {0: "Official", 1: "Single", 2: "Mutable", 4: "Recipe"}
+
+log = logging.getLogger(__name__)
 
 
 def _int(props: dict[str, Any], key: str) -> int | None:
@@ -66,7 +69,10 @@ class XiaomiC3osReader:
         async with self._lock:
             try:
                 props = await asyncio.to_thread(self._read_sync)
-            except DeviceException:
+            # python-miio raises DeviceException on timeouts, but e.g. TypeError when it cannot
+            # decode a reply (seen with two clients polling at once), so any failure counts.
+            except Exception as exc:
+                log.debug("reading the device failed: %r", exc)
                 # Redo the handshake after the device comes back from standby.
                 self._did = None
                 return CookerState(reachable=False, updated_at=datetime.now(UTC))

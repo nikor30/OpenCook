@@ -19,7 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from miio import Device, DeviceException
+from miio import Device
 
 from opencook.drivers.xiaomi_c3os.protocol import device_id, read_properties
 
@@ -63,8 +63,9 @@ def main() -> int:
             record: dict[str, Any] = {"ts": datetime.now(UTC).isoformat(timespec="milliseconds")}
             try:
                 record["props"] = read_properties(device, did)
-            except DeviceException as exc:
-                record["error"] = str(exc)
+            # python-miio raises TypeError instead of DeviceException on undecodable replies.
+            except Exception as exc:
+                record["error"] = repr(exc)
             polls += 1
 
             props = record.get("props")

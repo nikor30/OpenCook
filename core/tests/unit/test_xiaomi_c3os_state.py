@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from opencook.drivers.xiaomi_c3os import state_from_props
+from opencook.drivers.xiaomi_c3os import XiaomiC3osReader, state_from_props
 
 NOW = datetime(2026, 10, 5, 9, 50, tzinfo=UTC)
 
@@ -59,3 +59,18 @@ def test_unknown_status_keeps_value_without_label() -> None:
 
     assert state.status == 42
     assert state.status_label is None
+
+
+async def test_reader_reports_unreachable_on_any_library_error() -> None:
+    reader = XiaomiC3osReader("192.0.2.1", "0" * 32)
+    reader._did = "1"
+
+    def broken_read() -> dict[str, object]:
+        raise TypeError("byte indices must be integers or slices, not str")
+
+    reader._read_sync = broken_read  # type: ignore[method-assign]
+
+    state = await reader.read_state()
+
+    assert not state.reachable
+    assert reader._did is None
