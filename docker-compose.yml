@@ -6,4 +6,9 @@ services:
     env_file: .env # OC_DEVICE_IP, OC_DEVICE_TOKEN
     ports:
       - "8080:8080"
+    volumes:
+      - opencook-data:/data # cook history (SQLite)
     restart: unless-stopped
+
+volumes:
+  opencook-data:

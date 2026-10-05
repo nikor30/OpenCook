@@ -9,6 +9,10 @@ WORKDIR /app
 COPY core/ ./core/
 RUN pip install --no-cache-dir ./core
 
+RUN mkdir -p /data && chown nobody /data
+ENV OC_DB_PATH=/data/opencook.db
+VOLUME /data
+
 USER nobody
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s \
