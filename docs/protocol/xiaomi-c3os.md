@@ -103,6 +103,15 @@ Details in `research/notes/experiments.md`.
 - Drehrichtung und Gewicht erscheinen in keiner Property; die am Display aktivierte Waage ändert
   `weigh-activity` nicht.
 
+## Beobachtetes Verhalten bei Rezepten (2026-10-05)
+
+- Ein am Display gestartetes offizielles Rezept setzt `cook-id` auf eine numerische Rezept-ID,
+  `cook-type` 4 und `cook-name` auf den Rezepttitel; `mode` ist auch hier 5.
+- `remaining-time` läuft ab der Dauer des Maschinenschritts herunter. Abbruch setzt `status` und `mode`
+  auf 0; `cook-id`, `cook-type` und `cook-name` bleiben stehen.
+- `recipe-command` bleibt leer. Der Parameter wird nur als Eingabe von `start-recipe-cook` verwendet,
+  nie vom Gerät zurückgemeldet.
+
 ## Offene Fragen
 
 Q1–Q8 siehe KICKSTART.md §1. Antworten werden hier mit Datum und Experiment-Referenz (E1–E6) nachgetragen.

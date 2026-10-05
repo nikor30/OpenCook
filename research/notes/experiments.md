@@ -37,3 +37,22 @@ Zwischen 09:45:47 und 09:47:53 keine einzige Property-Änderung. 4.13 weigh-acti
 **Ergebnis:** Das Gewicht ist über die Properties nicht lesbar, und die am Display aktivierte Waage
 spiegelt sich nicht in 4.13 (Q7). Die Spec kennt auch keine Gewichts-Property. Offen: ob
 `switch-weigh` (siid 4 aiid 3) per API etwas auslöst.
+
+## 2026-10-05 – E4 offizielles Rezept (am Display gestartet, nach wenigen Sekunden abgebrochen)
+
+| Zeit | Änderung |
+| --- | --- |
+| 09:49:14 | 2.2 mode 5 → 0 (manuellen Modus verlassen) |
+| 09:49:49 | 2.2 mode → 5 |
+| 09:49:58 | 4.3 cook-id → 1474, 4.4 cook-type → 4 (Recipe), 4.5 cook-name → Rezepttitel im Klartext |
+| 09:50:01 | 2.1 status → 1, 4.14 remaining-time ab 1500 |
+| 09:50:06 | 2.1 status → 3 (Paused) bei 1496 |
+| 09:50:11 | 2.1 status → 0, 2.2 mode → 0, remaining-time → 0 (Abbruch) |
+
+Unverändert: 2.10 recipe-command (leer), 4.6–4.9, 4.10–4.12, 2.3 left-time.
+cook-id, cook-type und cook-name bleiben nach dem Abbruch stehen.
+
+**Ergebnis:** Rezepte haben eine numerische ID (`cook-id`), `cook-type` 4 und den Titel als
+`cook-name`. `remaining-time` ist die Dauer des laufenden Schritts bzw. Rezepts (1500 s).
+`recipe-command` wird bei einem am Display gestarteten Rezept **nicht** befüllt – das Format (Q1) lässt
+sich durch Mitlesen nicht gewinnen. Auch bei Rezepten ist `mode` 5; die Werte 1–4 wurden nie gesehen.

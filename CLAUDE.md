@@ -51,4 +51,6 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
 - 2026-10-05: E1–E3: Display-Läufe zeigen nur status/remaining-time (4.14); Temp/Speed/Dauer, Drehrichtung und
   Gewicht sind NICHT lesbar. Q3/Q4/Q7 nur noch über Setzen per API (E6) klärbar. Aktionen siid 4 aiid 1–8 siehe
   docs/protocol. Notizen: research/notes/experiments.md.
+- 2026-10-05: E4: offizielles Rezept → cook-id numerisch, cook-type 4, cook-name = Titel; recipe-command bleibt
+  leer. Q1 ist durch Mitlesen am Gerät nicht lösbar → Plugin-Analyse (Phase 2a) oder Raten mit cook-id (E6).
 
