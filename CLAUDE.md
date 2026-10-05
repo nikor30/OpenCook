@@ -86,3 +86,7 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
   auch nicht „nur ein paar“. Import nur per vom Nutzer eingefügtem Text; Testdaten selbst schreiben.
 - 2026-10-05: FastAPI ≥0.142 kapselt `include_router` (`_IncludedRouter`) – Routen über `app.openapi()` prüfen,
   nicht über `app.routes`.
+- 2026-10-05: Text-Import `converters/thermomix_text.py`: TM-Stufe ×2 auf 20er-Skala (Annahme, Q4 offen), Linkslauf →
+  reverse, Sanftrührstufe → 1, Varoma → 120 °C + steamer (Warnung), Teig/Knet → 4, Turbo → 20 (Warnung).
+  `POST /api/import/text` liefert nur eine Vorschau; der Editor speichert. Testrezepte: core/tests/fixtures/thermomix_text
+  (selbst geschrieben, CC0).
