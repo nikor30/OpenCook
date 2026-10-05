@@ -41,6 +41,27 @@ def _walk(data: Any) -> list[dict[str, Any]]:
     return []
 
 
+def json_ld_types(page: str) -> list[str]:
+    """The schema.org types embedded in the page, for the test mode."""
+    found: list[str] = []
+
+    def collect(data: Any) -> None:
+        if isinstance(data, list):
+            for item in data:
+                collect(item)
+        elif isinstance(data, dict):
+            kind = data.get("@type")
+            found.extend(kind if isinstance(kind, list) else [kind] if kind else [])
+            collect(data.get("@graph", []))
+
+    for block in JSON_LD.findall(page):
+        try:
+            collect(json.loads(block.strip()))
+        except json.JSONDecodeError:
+            found.append("(ungültiges JSON)")
+    return found
+
+
 def find_recipe(page: str) -> dict[str, Any] | None:
     for block in JSON_LD.findall(page):
         try:

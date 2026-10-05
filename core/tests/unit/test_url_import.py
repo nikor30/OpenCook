@@ -138,3 +138,53 @@ async def test_large_pages_and_errors_are_refused() -> None:
     async with client(site(status=404)) as c:
         with pytest.raises(web.ImportRefusedError, match="404"):
             await web.fetch_page("https://example.org/missing", client=c, resolver=public)
+
+
+async def test_trace_records_every_check() -> None:
+    trace: list[web.Check] = []
+    async with client(site()) as c:
+        await web.fetch_page("https://example.org/linsen", client=c, resolver=public, trace=trace)
+
+    assert [(t.name, t.ok) for t in trace] == [
+        ("Adresse", True),
+        ("Netz", True),
+        ("robots.txt", True),
+        ("Abruf", True),
+    ]
+    assert PUBLIC_IP in trace[1].detail
+    assert "HTTP 200" in trace[3].detail
+
+
+@pytest.mark.parametrize(
+    ("url", "robots", "resolver", "failed"),
+    [
+        ("https://mixbuch.app/r/1", "", public, "Adresse"),
+        ("https://intranet.example/", "", private, "Netz"),
+        (
+            "https://example.org/rezepte/1",
+            "User-agent: *\nDisallow: /rezepte/",
+            public,
+            "robots.txt",
+        ),
+    ],
+)
+async def test_trace_stops_at_the_failing_check(
+    url: str, robots: str, resolver: web.Resolver, failed: str
+) -> None:
+    trace: list[web.Check] = []
+    async with client(site(robots)) as c:
+        with pytest.raises(web.ImportRefusedError):
+            await web.fetch_page(url, client=c, resolver=resolver, trace=trace)
+
+    assert trace[-1].name == failed
+    assert not trace[-1].ok
+    assert all(t.ok for t in trace[:-1])
+
+
+def test_json_ld_types_are_listed() -> None:
+    assert schema_org.json_ld_types(PAGE) == [
+        "WebSite",
+        "BreadcrumbList",
+        "Recipe",
+        "NewsArticle",
+    ]

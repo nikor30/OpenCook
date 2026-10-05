@@ -6,6 +6,44 @@
     <title>OpenCook – Einstellungen</title>
     <link rel="icon" href="/static/icons/settings.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/static/app.css" />
+    <style>
+      .checks {
+        list-style: none;
+        padding: 0;
+        margin: 12px 0 0;
+        display: grid;
+        gap: 8px;
+      }
+      .checks li {
+        display: grid;
+        grid-template-columns: 1.6em 7em 1fr;
+        gap: 8px;
+        align-items: baseline;
+      }
+      .checks .mark {
+        font-weight: 700;
+      }
+      .checks .ok .mark {
+        color: var(--ok);
+      }
+      .checks .fail .mark {
+        color: var(--danger);
+      }
+      .checks .name {
+        font-weight: 600;
+      }
+      .checks .detail {
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 480px) {
+        .checks li {
+          grid-template-columns: 1.6em 1fr;
+        }
+        .checks .detail {
+          grid-column: 2;
+        }
+      }
+    </style>
   </head>
   <body>
     <main>
@@ -55,8 +93,19 @@
             placeholder="https://…"
           />
         </div>
+        <label class="switch" for="url-test" style="margin-bottom: 16px">
+          <span>
+            Testmodus<br />
+            <span class="muted"
+              >Nur prüfen, ob sich die Adresse importieren lässt – jeder Schritt
+              wird angezeigt, nichts geöffnet oder gespeichert.</span
+            >
+          </span>
+          <input type="checkbox" id="url-test" />
+        </label>
         <button type="submit" id="url-submit">Importieren und prüfen</button>
         <div class="notice" id="url-result" role="status" hidden></div>
+        <div id="url-report" hidden></div>
         <p class="muted">
           OpenCook ruft genau diese eine Seite ab und liest die eingebetteten
           Rezeptdaten (schema.org), nur Text, keine Bilder. Das Rezept öffnet
@@ -170,28 +219,117 @@
         }
       });
 
+      // Test-mode switch: remembered per browser.
+      try {
+        $("url-test").checked =
+          localStorage.getItem("opencook-url-test") === "1";
+      } catch {}
+      const syncTestMode = () => {
+        $("url-submit").textContent = $("url-test").checked
+          ? "Adresse prüfen"
+          : "Importieren und prüfen";
+        try {
+          localStorage.setItem(
+            "opencook-url-test",
+            $("url-test").checked ? "1" : "0",
+          );
+        } catch {}
+      };
+      $("url-test").addEventListener("change", syncTestMode);
+      syncTestMode();
+
+      async function post(path, body) {
+        const r = await fetch(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          throw new Error(
+            Array.isArray(data.detail)
+              ? "Bitte eine vollständige Adresse eingeben."
+              : data.detail,
+          );
+        }
+        return data;
+      }
+
+      function openDraft(preview) {
+        sessionStorage.setItem("opencook-import", JSON.stringify(preview));
+        location.href = "/recipes/edit?draft=1";
+      }
+
+      function renderReport(report) {
+        const line = (c) => {
+          const li = document.createElement("li");
+          li.className = c.ok ? "ok" : "fail";
+          for (const [cls, text] of [
+            ["mark", c.ok ? "✓" : "✗"],
+            ["name", c.name],
+            ["detail", c.detail],
+          ]) {
+            const span = document.createElement("span");
+            span.className = cls;
+            span.textContent = text;
+            li.append(span);
+          }
+          return li;
+        };
+        const list = document.createElement("ul");
+        list.className = "checks";
+        list.append(...report.checks.map(line));
+        const parts = [list];
+        const preview = report.preview;
+        if (preview) {
+          const notes = [...preview.warnings, ...preview.problems];
+          if (notes.length) {
+            const ul = document.createElement("ul");
+            ul.append(
+              ...notes.map((n) =>
+                Object.assign(document.createElement("li"), { textContent: n }),
+              ),
+            );
+            const box = document.createElement("div");
+            box.className = "notice warn";
+            box.append("Hinweise für den Editor:", ul);
+            parts.push(box);
+          }
+          const open = document.createElement("button");
+          open.type = "button";
+          open.className = "secondary";
+          open.style.marginTop = "12px";
+          open.textContent = "Im Editor öffnen";
+          open.addEventListener("click", () => openDraft(preview));
+          parts.push(open);
+        }
+        $("url-report").replaceChildren(...parts);
+        $("url-report").hidden = false;
+      }
+
       $("url-import").addEventListener("submit", async (event) => {
         event.preventDefault();
         const result = $("url-result");
+        const testMode = $("url-test").checked;
         $("url-submit").disabled = true;
+        $("url-report").hidden = true;
         show(result, "warn", "Lade die Seite …");
         try {
-          const r = await fetch("/api/import/url", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: $("url").value }),
-          });
-          const data = await r.json();
-          if (!r.ok) {
-            const detail = data.detail;
-            throw new Error(
-              Array.isArray(detail)
-                ? "Bitte eine vollständige Adresse eingeben."
-                : detail,
+          if (testMode) {
+            const report = await post("/api/import/url/check", {
+              url: $("url").value,
+            });
+            show(
+              result,
+              report.ok ? "ok" : "error",
+              report.ok
+                ? "Diese Adresse lässt sich importieren."
+                : "Diese Adresse lässt sich nicht importieren.",
             );
+            renderReport(report);
+          } else {
+            openDraft(await post("/api/import/url", { url: $("url").value }));
           }
-          sessionStorage.setItem("opencook-import", JSON.stringify(data));
-          location.href = "/recipes/edit?draft=1";
         } catch (err) {
           show(result, "error", err.message);
         } finally {

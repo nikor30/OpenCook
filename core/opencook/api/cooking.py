@@ -45,6 +45,20 @@ class UrlImport(BaseModel):
     url: str = Field(min_length=8, max_length=2000)
 
 
+class CheckOut(BaseModel):
+    name: str
+    ok: bool
+    detail: str
+
+
+class UrlCheck(BaseModel):
+    """Test mode of the URL import: every check, plus the preview if it got that far."""
+
+    ok: bool
+    checks: list[CheckOut]
+    preview: ImportPreview | None
+
+
 class CookStart(BaseModel):
     recipe_id: UUID
 
@@ -147,6 +161,42 @@ def make_router(
             recipe=result.recipe,
             warnings=result.warnings,
             problems=c3os.problems(result.recipe),
+        )
+
+    @router.post("/import/url/check")
+    async def check_url(body: UrlImport) -> UrlCheck:
+        """Runs the URL import step by step and reports each check; nothing is saved."""
+        trace: list[web.Check] = []
+
+        def report(ok: bool, preview: ImportPreview | None = None) -> UrlCheck:
+            checks = [CheckOut(name=c.name, ok=c.ok, detail=c.detail) for c in trace]
+            return UrlCheck(ok=ok, checks=checks, preview=preview)
+
+        try:
+            page = await web.fetch_page(body.url, resolver=resolver, trace=trace)
+        except web.ImportRefusedError:
+            return report(False)
+        types = schema_org.json_ld_types(page)
+        found = schema_org.find_recipe(page) is not None
+        detail = f"schema.org-Typen: {', '.join(types)}" if types else "keine schema.org-Daten"
+        trace.append(web.Check("Rezeptdaten", found, detail))
+        if not found:
+            return report(False)
+        try:
+            result = schema_org.convert_page(page, body.url.strip())
+        except ValueError as err:
+            trace.append(web.Check("Umwandlung", False, str(err)))
+            return report(False)
+        recipe = result.recipe
+        machine = sum(isinstance(s, MachineStep) for s in recipe.steps)
+        summary = (
+            f"„{recipe.title}“: {len(recipe.ingredients)} Zutaten, {len(recipe.steps)} Schritte, "
+            f"davon {machine} an der Maschine"
+        )
+        trace.append(web.Check("Umwandlung", True, summary))
+        problems = c3os.problems(recipe)
+        return report(
+            True, ImportPreview(recipe=recipe, warnings=result.warnings, problems=problems)
         )
 
     @router.get("/recipes/{recipe_id}")

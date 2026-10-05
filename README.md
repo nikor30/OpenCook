@@ -102,6 +102,10 @@ eingebetteten schema.org-Rezeptdaten (JSON-LD) und wandelt sie wie beim Text-Imp
 - gesperrt sind Seiten, deren Nutzungsbedingungen automatisches Auslesen verbieten (Rezeptwelt,
   MixBuch, Cookidoo). Dort den Rezepttext kopieren und *Text einfügen* nutzen.
 
+Mit dem Schalter **Testmodus** prüft OpenCook eine Adresse nur und zeigt jeden Schritt mit ✓ oder ✗
+an (Sperrliste, Netz, robots.txt, Abruf, Rezeptdaten, Umwandlung) – praktisch, um herauszufinden,
+welche Seiten sich importieren lassen.
+
 Ein Beispielrezept liegt in [docs/examples](docs/examples/).
 
 ## Wie gezählt wird

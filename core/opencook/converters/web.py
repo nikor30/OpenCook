@@ -10,6 +10,7 @@ import asyncio
 import ipaddress
 import socket
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from urllib.parse import urljoin, urlsplit
 from urllib.robotparser import RobotFileParser
 
@@ -52,7 +53,25 @@ def blocked_reason(host: str) -> str | None:
     return None
 
 
-async def _check_url(url: str, resolver: Resolver) -> None:
+@dataclass
+class Check:
+    """One step of the import, shown in the test mode."""
+
+    name: str
+    ok: bool
+    detail: str
+
+
+Trace = list[Check] | None
+
+
+def _note(trace: Trace, name: str, ok: bool, detail: str) -> None:
+    if trace is not None:
+        trace.append(Check(name, ok, detail))
+
+
+def _check_target(url: str) -> str:
+    """Returns the host name if the address may be fetched at all."""
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise ImportRefusedError("Bitte eine vollständige Adresse mit https:// angeben.")
@@ -61,18 +80,33 @@ async def _check_url(url: str, resolver: Resolver) -> None:
             f"{parts.hostname} erlaubt kein automatisches Auslesen ({reason}). "
             "Kopiere den Rezepttext und nutze „Text einfügen“."
         )
+    return parts.hostname
+
+
+async def _check_network(host: str, resolver: Resolver) -> list[str]:
     try:
-        addresses = await resolver(parts.hostname)
+        addresses = await resolver(host)
     except OSError as err:
-        raise ImportRefusedError(f"{parts.hostname} wurde nicht gefunden.") from err
+        raise ImportRefusedError(f"{host} wurde nicht gefunden.") from err
     for address in addresses:
-        ip = ipaddress.ip_address(address)
-        if not ip.is_global:
+        if not ipaddress.ip_address(address).is_global:
             raise ImportRefusedError("Adressen im lokalen Netz werden nicht abgerufen.")
+    return addresses
 
 
-async def _get(client: httpx.AsyncClient, url: str, resolver: Resolver) -> httpx.Response:
-    for _ in range(MAX_REDIRECTS + 1):
+async def _check_url(url: str, resolver: Resolver) -> None:
+    await _check_network(_check_target(url), resolver)
+
+
+@dataclass
+class Fetched:
+    response: httpx.Response
+    url: str
+    redirects: int
+
+
+async def _get(client: httpx.AsyncClient, url: str, resolver: Resolver) -> Fetched:
+    for redirects in range(MAX_REDIRECTS + 1):
         await _check_url(url, resolver)
         async with client.stream("GET", url) as response:
             if response.is_redirect and "location" in response.headers:
@@ -85,31 +119,37 @@ async def _get(client: httpx.AsyncClient, url: str, resolver: Resolver) -> httpx
                     raise ImportRefusedError("Die Seite ist zu groß.")
             # aiter_bytes() already decoded gzip/brotli; keep only the charset information.
             headers = {"content-type": response.headers.get("content-type", "text/html")}
-            return httpx.Response(
+            fetched = httpx.Response(
                 response.status_code, headers=headers, content=body, request=response.request
             )
+            return Fetched(fetched, url, redirects)
     raise ImportRefusedError("Zu viele Weiterleitungen.")
 
 
-async def _allowed_by_robots(client: httpx.AsyncClient, url: str, resolver: Resolver) -> bool:
+async def _robots(client: httpx.AsyncClient, url: str, resolver: Resolver) -> tuple[bool, str]:
+    """Whether robots.txt allows the page, and why."""
     parts = urlsplit(url)
     robots_url = f"{parts.scheme}://{parts.netloc}/robots.txt"
     try:
-        response = await _get(client, robots_url, resolver)
+        response = (await _get(client, robots_url, resolver)).response
     except (httpx.HTTPError, ImportRefusedError):
-        return True  # no readable robots.txt: no restrictions
+        return True, "keine robots.txt lesbar – keine Einschränkung"
     if response.status_code >= 400:
-        return True
+        return True, f"keine robots.txt (HTTP {response.status_code}) – keine Einschränkung"
     parser = RobotFileParser()
     parser.parse(response.text.splitlines())
-    return parser.can_fetch(USER_AGENT, url)
+    if parser.can_fetch(USER_AGENT, url):
+        return True, "erlaubt den Abruf"
+    return False, "Die Seite verbietet den Abruf durch Programme (robots.txt)."
 
 
 async def fetch_page(
     url: str,
     client: httpx.AsyncClient | None = None,
     resolver: Resolver = resolve,
+    trace: Trace = None,
 ) -> str:
+    """Fetches one page. With `trace`, every check is recorded for the test mode."""
     url = url.strip()
     own_client = client is None
     client = client or httpx.AsyncClient(
@@ -117,17 +157,37 @@ async def fetch_page(
         timeout=TIMEOUT_S,
         follow_redirects=False,
     )
+    stage = "Adresse"
     try:
-        await _check_url(url, resolver)
-        if not await _allowed_by_robots(client, url, resolver):
-            raise ImportRefusedError("Die Seite verbietet den Abruf durch Programme (robots.txt).")
+        host = _check_target(url)
+        _note(trace, stage, True, f"{host} ist nicht gesperrt")
+        stage = "Netz"
+        addresses = await _check_network(host, resolver)
+        _note(trace, stage, True, f"{host} → {', '.join(addresses[:3])}")
+        stage = "robots.txt"
+        allowed, reason = await _robots(client, url, resolver)
+        if not allowed:
+            raise ImportRefusedError(reason)
+        _note(trace, stage, True, reason)
+        stage = "Abruf"
         try:
-            response = await _get(client, url, resolver)
+            fetched = await _get(client, url, resolver)
         except httpx.HTTPError as err:
             raise ImportRefusedError(f"Die Seite konnte nicht geladen werden ({err}).") from err
-        if response.status_code >= 400:
-            raise ImportRefusedError(f"Die Seite antwortet mit Fehler {response.status_code}.")
-        return response.text
+        status = fetched.response.status_code
+        if status >= 400:
+            raise ImportRefusedError(f"Die Seite antwortet mit Fehler {status}.")
+        size_kb = len(fetched.response.content) / 1024
+        moved = (
+            f", {fetched.redirects} Weiterleitung(en) nach {fetched.url}"
+            if fetched.redirects
+            else ""
+        )
+        _note(trace, stage, True, f"HTTP {status}, {size_kb:.0f} KB{moved}")
+        return fetched.response.text
+    except ImportRefusedError as err:
+        _note(trace, stage, False, str(err))
+        raise
     finally:
         if own_client:
             await client.aclose()
