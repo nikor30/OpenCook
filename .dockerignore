@@ -1,0 +1,6 @@
+.git
+.env
+research/
+**/__pycache__
+**/*.egg-info
+.venv

@@ -1,0 +1,62 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OpenCook-Core",
+        "description": "Adresse des OpenCook-Cores (die Webansicht, z. B. 192.168.10.232 Port 8080).",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Der OpenCook-Core ist unter dieser Adresse nicht erreichbar."
+    },
+    "abort": {
+      "already_configured": "Dieser OpenCook-Core ist bereits eingerichtet."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": {
+        "name": "Status",
+        "state": {
+          "standby": "Bereit",
+          "cooking": "Kocht",
+          "paused": "Pausiert",
+          "sleep": "Schläft",
+          "error": "Fehler",
+          "complete": "Fertig",
+          "offline": "Nicht erreichbar"
+        }
+      },
+      "remaining_time": {
+        "name": "Restzeit"
+      },
+      "finishes_at": {
+        "name": "Fertig um"
+      },
+      "recipe": {
+        "name": "Rezept"
+      },
+      "recipe_id": {
+        "name": "Rezept-ID"
+      },
+      "mode": {
+        "name": "Modus"
+      },
+      "fault": {
+        "name": "Fehlercode"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      },
+      "running": {
+        "name": "Läuft"
+      }
+    }
+  }
+}

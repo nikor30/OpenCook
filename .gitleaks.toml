@@ -1,0 +1,18 @@
+title = "OpenCook gitleaks config"
+
+[extend]
+useDefault = true
+
+# The default rules do not recognise bare miIO tokens (32 hex chars), which are
+# the secret most likely to leak from this project.
+[[rules]]
+id = "miio-device-token"
+description = "miIO device token (32 hex chars)"
+regex = '''(?i)token["'\s]*[:=\s]\s*["']?([0-9a-f]{32})\b'''
+keywords = ["token"]
+
+[[rules]]
+id = "xiaomi-cloud-ssecurity"
+description = "Xiaomi cloud ssecurity / serviceToken"
+regex = '''(?i)(?:ssecurity|servicetoken)["'\s]*[:=]\s*["']?([A-Za-z0-9+/]{16,}={0,2})'''
+keywords = ["ssecurity", "servicetoken"]

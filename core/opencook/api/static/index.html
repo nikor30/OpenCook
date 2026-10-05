@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCook – Bimbi</title>
+    <style>
+      :root {
+        --bg: #f6f5f2;
+        --card: #ffffff;
+        --text: #1d1d1b;
+        --muted: #6b6a65;
+        --line: #e4e2dc;
+        --ok: #2f7d4f;
+        --run: #b4541a;
+        --off: #8a8984;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #161614;
+          --card: #22211e;
+          --text: #edece8;
+          --muted: #a3a29c;
+          --line: #34332f;
+          --ok: #5cbf86;
+          --run: #f08a4b;
+          --off: #77766f;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.4 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .status {
+        font-size: 2.2rem;
+        font-weight: 600;
+      }
+      .remaining {
+        font-size: 3.5rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+      }
+      .dot {
+        display: inline-block;
+        width: 0.7em;
+        height: 0.7em;
+        border-radius: 50%;
+        margin-right: 0.4em;
+        background: var(--off);
+      }
+      .dot.ok {
+        background: var(--ok);
+      }
+      .dot.run {
+        background: var(--run);
+      }
+      dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 6px 16px;
+        margin: 0;
+      }
+      dt {
+        color: var(--muted);
+      }
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      details summary {
+        cursor: pointer;
+        color: var(--muted);
+      }
+      pre {
+        overflow-x: auto;
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Bimbi</h1>
+        <span class="muted">nur lesend</span>
+      </header>
+
+      <section class="card">
+        <div class="status">
+          <span id="dot" class="dot"></span><span id="status">–</span>
+        </div>
+        <div class="muted" id="updated">noch keine Daten</div>
+      </section>
+
+      <section class="card">
+        <div class="muted">Restzeit</div>
+        <div class="remaining" id="remaining">–</div>
+      </section>
+
+      <section class="card">
+        <dl>
+          <dt>Rezept</dt>
+          <dd id="cook_name">–</dd>
+          <dt>Rezept-ID</dt>
+          <dd id="cook_id">–</dd>
+          <dt>Typ</dt>
+          <dd id="cook_type">–</dd>
+          <dt>Modus</dt>
+          <dd id="mode">–</dd>
+          <dt>Fehlercode</dt>
+          <dd id="fault">–</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <details>
+          <summary>Rohwerte (siid.piid)</summary>
+          <pre id="raw"></pre>
+        </details>
+      </section>
+    </main>
+
+    <script>
+      const STATUS_DE = {
+        Standby: "Bereit",
+        Cooking: "Kocht",
+        Paused: "Pausiert",
+        Sleep: "Schläft",
+        Error: "Fehler",
+        Complete: "Fertig",
+      };
+      const $ = (id) => document.getElementById(id);
+      const withLabel = (value, label) =>
+        value === null ? "–" : label ? `${label} (${value})` : String(value);
+      const mmss = (s) =>
+        s === null || s === 0
+          ? "–"
+          : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+      function render(s) {
+        const running = s.status === 1 || s.status === 3;
+        $("dot").className =
+          "dot " + (!s.reachable ? "" : running ? "run" : "ok");
+        $("status").textContent = !s.reachable
+          ? "Nicht erreichbar (Standby?)"
+          : (STATUS_DE[s.status_label] ?? withLabel(s.status, s.status_label));
+        $("updated").textContent =
+          "Stand " + new Date(s.updated_at).toLocaleTimeString("de-DE");
+        $("remaining").textContent = mmss(s.remaining_s);
+        $("cook_name").textContent = s.cook_name ?? "–";
+        $("cook_id").textContent = s.cook_id ?? "–";
+        $("cook_type").textContent = withLabel(s.cook_type, s.cook_type_label);
+        $("mode").textContent = withLabel(s.mode, s.mode_label);
+        $("fault").textContent = s.fault ?? "–";
+        $("raw").textContent = JSON.stringify(s.raw, null, 2);
+      }
+
+      async function tick() {
+        try {
+          const r = await fetch("/api/state", { cache: "no-store" });
+          if (r.ok) render(await r.json());
+        } catch {
+          $("updated").textContent = "Server nicht erreichbar";
+        }
+      }
+      tick();
+      setInterval(tick, 1000);
+    </script>
+  </body>
+</html>
