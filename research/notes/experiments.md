@@ -75,3 +75,14 @@ nicht per API ausgelöst (letzter Befehl davor 09:51:59); Ursache noch nicht gek
 aus. Die schreibbaren Properties verhalten sich wie ein reiner Speicher ohne Verbindung zur Koch-App.
 Lokales Starten/Setzen über die Spec-Aktionen funktioniert so nicht (Q3/Q4 weiter offen).
 Nach dem Versuch wurden 2.4, 4.10 und 4.12 auf die Ausgangswerte zurückgesetzt.
+
+## 2026-10-05 – E7 `start-recipe-cook` mit bekannter Rezept-ID (Nutzer am Gerät)
+
+`action` siid 2 aiid 4 mit `recipe-command` = `"1474"`, `{"cook_id": 1474}`, `{"id": 1474}`,
+`{"recipeId": 1474}` (jeweils als `"in": [<string>]`) sowie `"in": [{"piid": 10, "value": "1474"}]`.
+Jede Variante: `code 0`, keine Ausgabe. Innerhalb von 6 s keine Änderung an status, cook-id,
+cook-name oder recipe-command. (Display-Beobachtung des Nutzers noch offen.)
+
+**Ergebnis:** Auch `start-recipe-cook` wird quittiert, aber nicht ausgeführt – zumindest nicht mit
+einer bloßen Rezept-ID. Zusammen mit E6 ist lokales Starten damit nicht belegt. Eigene Rezepte laufen
+deshalb über den Koch-Modus von OpenCook (Anleitung am Tablet, Start am Display).

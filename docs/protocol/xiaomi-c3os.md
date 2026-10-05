@@ -122,6 +122,8 @@ Details in `research/notes/experiments.md`.
   `start-cook` startet nichts (getestet mit mode 0 und 5, mit und ohne `on = true`).
   Gesetzte Werte lesen sich aber zurück – die Properties wirken wie ein Speicher ohne Anbindung an
   die Koch-App.
+- Auch `start-recipe-cook` (siid 2 aiid 4) mit einer bekannten Rezept-ID in mehreren Formaten
+  antwortet `code 0` ohne jede Wirkung (Experiment E7).
 
 ## Offene Fragen
 
