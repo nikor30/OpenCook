@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from opencook.drivers.xiaomi_c3os import XiaomiC3osReader, state_from_props
+from opencook.drivers.xiaomi_c3os.protocol import read_properties
 
 NOW = datetime(2026, 10, 5, 9, 50, tzinfo=UTC)
 
@@ -74,3 +75,16 @@ async def test_reader_reports_unreachable_on_any_library_error() -> None:
 
     assert not state.reachable
     assert reader._did is None
+
+
+def test_driver_only_ever_sends_get_properties() -> None:
+    sent: list[str] = []
+
+    class RecordingDevice:
+        def send(self, command: str, params: list[dict[str, object]], **_: object) -> list[object]:
+            sent.append(command)
+            return [{**p, "code": 0, "value": 0} for p in params]
+
+    read_properties(RecordingDevice(), "1")
+
+    assert set(sent) == {"get_properties"}

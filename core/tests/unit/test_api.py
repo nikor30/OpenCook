@@ -60,20 +60,31 @@ def test_state_endpoint_returns_polled_state(tmp_path: Path) -> None:
     assert body["remaining_s"] == 42
 
 
-def test_only_settings_are_writable(tmp_path: Path) -> None:
+def test_writable_routes_only_touch_local_data(tmp_path: Path) -> None:
     app = create_app(
         reader_factory=lambda _: FakeReader(cooking()), settings_store=configured(tmp_path)
     )
 
     writable = {
-        (getattr(route, "path", None), method)
-        for route in app.routes
-        for method in getattr(route, "methods", set())
-        if method not in {"GET", "HEAD"}
+        (path, method.upper())
+        for path, operations in app.openapi()["paths"].items()
+        for method in operations
+        if method not in {"get", "head"}
     }
 
-    # The cooker itself is never written to; only the local configuration is.
-    assert writable == {("/api/settings", "PUT")}
+    # Configuration, recipes and the cook-mode run. The cooker itself is never written to
+    # (the driver only sends get_properties, see test_xiaomi_c3os_state).
+    assert writable == {
+        ("/api/settings", "PUT"),
+        ("/api/recipes", "POST"),
+        ("/api/recipes/{recipe_id}", "PUT"),
+        ("/api/recipes/{recipe_id}", "DELETE"),
+        ("/api/cook", "POST"),
+        ("/api/cook", "PUT"),
+        ("/api/cook", "DELETE"),
+        ("/api/cook/next", "POST"),
+        ("/api/cook/back", "POST"),
+    }
 
 
 def test_stats_endpoint_and_page(tmp_path: Path) -> None:

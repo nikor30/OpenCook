@@ -36,6 +36,8 @@
     <main>
       <nav id="tabs"></nav>
 
+      <a class="card notice ok" id="cooking" href="/cook" hidden></a>
+
       <section class="card notice warn" id="unconfigured" hidden>
         Noch kein Gerät eingerichtet. Trage IP und Token unter
         <a href="/settings">Einstellungen</a> ein.
@@ -112,7 +114,21 @@
         $("raw").textContent = JSON.stringify(s.raw, null, 2);
       }
 
+      async function showCookMode() {
+        const r = await fetch("/api/cook", { cache: "no-store" });
+        const view = r.ok ? await r.json() : null;
+        const active = view && !view.run.finished;
+        $("cooking").hidden = !active;
+        if (active) {
+          const { run } = view;
+          $("cooking").textContent =
+            `Koch-Modus: ${run.recipe.title} – Schritt ${run.step_index + 1} von ` +
+            `${run.recipe.steps.length}. Zum Koch-Modus →`;
+        }
+      }
+
       async function tick() {
+        showCookMode().catch(() => {});
         try {
           const r = await fetch("/api/state", { cache: "no-store" });
           if (r.ok) render(await r.json());

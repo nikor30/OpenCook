@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCook – Kochen</title>
+    <link rel="icon" href="/static/icons/recipes.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/app.css" />
+    <style>
+      main {
+        max-width: 960px;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .progress {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--line);
+        overflow: hidden;
+      }
+      .progress div {
+        height: 100%;
+        background: var(--accent);
+        transition: width 0.3s;
+      }
+      .kind {
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .step-title {
+        font-size: 2rem;
+        font-weight: 600;
+        margin: 4px 0 12px;
+      }
+      .text {
+        font-size: 1.4rem;
+        line-height: 1.5;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin: 16px 0;
+      }
+      .tile {
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 16px;
+      }
+      .tile .value {
+        font-size: 2.4rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .tile .label {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .phase {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 1.3rem;
+        font-weight: 600;
+        padding: 16px 20px;
+        border-radius: 12px;
+      }
+      .phase .count {
+        margin-left: auto;
+        font-size: 2.6rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .phase.ready {
+        background: color-mix(in srgb, var(--accent) 15%, transparent);
+      }
+      .phase.running {
+        background: color-mix(in srgb, var(--ok) 18%, transparent);
+      }
+      .phase.stopped {
+        background: color-mix(in srgb, var(--danger) 15%, transparent);
+      }
+      .phase.done {
+        background: color-mix(in srgb, var(--ok) 25%, transparent);
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 12px;
+      }
+      .next {
+        color: var(--muted);
+      }
+      ul.ingredients {
+        margin: 0;
+        padding-left: 1.2em;
+      }
+      .finished {
+        text-align: center;
+        padding: 40px 20px;
+      }
+      .finished .step-title {
+        font-size: 2.4rem;
+      }
+      @media (max-width: 560px) {
+        .tiles {
+          grid-template-columns: 1fr 1fr;
+        }
+        .step-title {
+          font-size: 1.5rem;
+        }
+        .text {
+          font-size: 1.15rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav id="tabs"></nav>
+      <div id="content" class="stack"></div>
+    </main>
+
+    <script src="/static/nav.js"></script>
+    <script src="/static/api.js"></script>
+    <script>
+      const KIND = {
+        machine: "Maschine",
+        user: "Handgriff",
+        weigh: "Abwiegen",
+        wait: "Warten",
+      };
+      let lastKey = null;
+      let ingredientsOpen = false; // survives the re-render every second
+
+      // A short double beep when OpenCook moves on by itself.
+      function beep() {
+        try {
+          const ctx = new AudioContext();
+          [0, 0.25].forEach((t) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.2, ctx.currentTime + t);
+            gain.gain.exponentialRampToValueAtTime(
+              0.001,
+              ctx.currentTime + t + 0.2,
+            );
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(ctx.currentTime + t);
+            osc.stop(ctx.currentTime + t + 0.2);
+          });
+        } catch {}
+      }
+
+      async function act(path, method = "POST", json) {
+        try {
+          await api(path, { method, json });
+        } catch (err) {
+          alert(err.message);
+        }
+        refresh();
+      }
+
+      function tile(value, label) {
+        return el(
+          "div",
+          { class: "tile" },
+          el("div", { class: "value" }, value),
+          el("div", { class: "label" }, label),
+        );
+      }
+
+      function phaseBox(view, device, step) {
+        const { phase } = view.run;
+        if (step.kind === "machine") {
+          const remaining =
+            device.reachable && device.remaining_s
+              ? clock(device.remaining_s)
+              : "";
+          const text = {
+            ready: device.reachable
+              ? "Am Display im manuellen Modus einstellen und Start drücken."
+              : "Bimbi ist nicht erreichbar – Gerät aufwecken, dann einstellen und starten.",
+            running: device.status === 3 ? "Pausiert" : "Läuft …",
+            stopped:
+              "Am Display gestoppt. Start drücken zum Fortsetzen – oder Weiter.",
+            done: "Fertig ✓",
+          }[phase];
+          return el(
+            "div",
+            { class: `phase ${phase}` },
+            text,
+            el(
+              "span",
+              { class: "count" },
+              phase === "running" ? remaining : "",
+            ),
+          );
+        }
+        if (step.kind === "wait") {
+          return el(
+            "div",
+            { class: `phase ${phase}` },
+            phase === "running" ? "Warten …" : "Fertig ✓",
+            el(
+              "span",
+              { class: "count" },
+              view.wait_remaining_s != null ? clock(view.wait_remaining_s) : "",
+            ),
+          );
+        }
+        return el(
+          "div",
+          { class: "phase ready" },
+          step.kind === "weigh"
+            ? "Mit der Waage am Display abwiegen, dann Weiter."
+            : "Erledigt? Dann Weiter.",
+        );
+      }
+
+      function render(view, device) {
+        const content = $("content");
+        if (!view) {
+          content.replaceChildren(
+            el(
+              "section",
+              { class: "card finished" },
+              el("div", { class: "step-title" }, "Gerade wird nichts gekocht."),
+              el(
+                "a",
+                { class: "button", href: "/recipes" },
+                "Rezept auswählen",
+              ),
+            ),
+          );
+          return;
+        }
+        const { run } = view;
+        const steps = run.recipe.steps;
+        const ingredients = run.recipe.ingredients;
+
+        if (run.finished) {
+          content.replaceChildren(
+            el(
+              "section",
+              { class: "card finished" },
+              el("div", { class: "kind" }, run.recipe.title),
+              el("div", { class: "step-title" }, "Fertig – guten Appetit!"),
+              el(
+                "div",
+                { class: "row", style: "justify-content:center" },
+                el(
+                  "button",
+                  { class: "secondary", onclick: () => act("/api/cook/back") },
+                  "Zurück",
+                ),
+                el(
+                  "button",
+                  { onclick: () => act("/api/cook", "DELETE") },
+                  "Beenden",
+                ),
+              ),
+            ),
+          );
+          return;
+        }
+
+        const step = steps[run.step_index];
+        const key = `${run.step_index}`;
+        if (lastKey !== null && key !== lastKey && run.auto_advance) beep();
+        lastKey = key;
+
+        const tiles = [];
+        if (view.settings) {
+          const s = view.settings;
+          tiles.push(tile(s.temp_c ? `${s.temp_c} °C` : "aus", "Temperatur"));
+          tiles.push(tile(clock(s.duration_s), "Zeit (min:s)"));
+          tiles.push(
+            tile(
+              s.speed_level
+                ? `${s.speed_level}${s.reverse ? " ↺" : ""}`
+                : "aus",
+              s.reverse ? "Stufe, rückwärts" : "Stufe",
+            ),
+          );
+        }
+        if (step.kind === "weigh") {
+          const ingredient = ingredients.find((i) => i.id === step.ingredient);
+          tiles.push(
+            tile(
+              `${step.target_g} g`,
+              ingredient ? ingredient.name : "abwiegen",
+            ),
+          );
+        }
+        if (step.kind === "wait")
+          tiles.push(tile(clock(step.duration_s), "Wartezeit"));
+
+        const following = steps[run.step_index + 1];
+        content.replaceChildren(
+          el(
+            "div",
+            { class: "top" },
+            el("h1", {}, run.recipe.title),
+            el(
+              "span",
+              { class: "muted" },
+              `Schritt ${run.step_index + 1} von ${steps.length}`,
+            ),
+          ),
+          el(
+            "div",
+            { class: "progress" },
+            el("div", {
+              style: `width:${(run.step_index / steps.length) * 100}%`,
+            }),
+          ),
+          el(
+            "section",
+            { class: "card" },
+            el("div", { class: "kind" }, KIND[step.kind]),
+            el("div", { class: "step-title" }, step.title || KIND[step.kind]),
+            tiles.length ? el("div", { class: "tiles" }, tiles) : null,
+            step.text
+              ? el("div", { class: "text" }, stepText(step.text, ingredients))
+              : null,
+          ),
+          phaseBox(view, device, step),
+          el(
+            "div",
+            { class: "controls" },
+            el(
+              "button",
+              {
+                class: "secondary big",
+                disabled: run.step_index === 0,
+                onclick: () => act("/api/cook/back"),
+              },
+              "Zurück",
+            ),
+            el(
+              "button",
+              { class: "big", onclick: () => act("/api/cook/next") },
+              run.step_index + 1 === steps.length ? "Fertig" : "Weiter",
+            ),
+          ),
+          following
+            ? el(
+                "div",
+                { class: "next" },
+                "Danach: ",
+                following.title || KIND[following.kind],
+                following.machine
+                  ? ` · ${duration(following.machine.duration_s)}`
+                  : "",
+              )
+            : null,
+          ingredients.length
+            ? el(
+                "details",
+                {
+                  class: "card",
+                  open: ingredientsOpen,
+                  ontoggle: (e) => (ingredientsOpen = e.target.open),
+                },
+                el("summary", {}, "Alle Zutaten"),
+                el(
+                  "ul",
+                  { class: "ingredients" },
+                  ingredients.map((i) => el("li", {}, ingredientText(i))),
+                ),
+              )
+            : null,
+          el(
+            "div",
+            { class: "row" },
+            el(
+              "label",
+              { class: "row", style: "flex-wrap:nowrap;flex:1" },
+              el("input", {
+                type: "checkbox",
+                checked: run.auto_advance,
+                onchange: (e) =>
+                  act("/api/cook", "PUT", { auto_advance: e.target.checked }),
+              }),
+              "Nach fertigem Maschinenschritt automatisch weiter",
+            ),
+            el(
+              "button",
+              {
+                class: "secondary danger",
+                style: "margin-left:auto",
+                onclick: () => {
+                  if (confirm("Kochen beenden?")) act("/api/cook", "DELETE");
+                },
+              },
+              "Beenden",
+            ),
+          ),
+        );
+      }
+
+      async function refresh() {
+        try {
+          const [view, device] = await Promise.all([
+            api("/api/cook"),
+            api("/api/state"),
+          ]);
+          render(view, device);
+        } catch (err) {
+          $("content").replaceChildren(
+            el("div", { class: "notice error" }, err.message),
+          );
+        }
+      }
+
+      // Keep a tablet screen on while cooking.
+      let wakeLock = null;
+      async function keepAwake() {
+        try {
+          wakeLock = await navigator.wakeLock?.request("screen");
+        } catch {}
+      }
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") keepAwake();
+      });
+      keepAwake();
+
+      refresh();
+      setInterval(refresh, 1000);
+    </script>
+  </body>
+</html>
