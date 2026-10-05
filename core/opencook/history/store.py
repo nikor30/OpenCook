@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import UTC, date, datetime, timedelta, tzinfo
-from pathlib import Path
 
 from pydantic import BaseModel
 from sqlalchemy import Engine
-from sqlalchemy.pool import StaticPool
-from sqlmodel import Field, Session, SQLModel, col, create_engine, select
+from sqlmodel import Field, Session, SQLModel, col, select
 
+from opencook.db import make_engine
 from opencook.history.tracker import CookSession, Outcome
 
 
@@ -144,17 +143,8 @@ class HistoryStore:
         SQLModel.metadata.create_all(engine)
 
     @classmethod
-    def from_path(cls, path: Path) -> HistoryStore:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        return cls(create_engine(f"sqlite:///{path}"))
-
-    @classmethod
     def in_memory(cls) -> HistoryStore:
-        return cls(
-            create_engine(
-                "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
-            )
-        )
+        return cls(make_engine(None))
 
     def open_session(self) -> CookSession | None:
         with Session(self._engine) as db:
