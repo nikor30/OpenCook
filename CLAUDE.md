@@ -90,3 +90,7 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
   reverse, Sanftrührstufe → 1, Varoma → 120 °C + steamer (Warnung), Teig/Knet → 4, Turbo → 20 (Warnung).
   `POST /api/import/text` liefert nur eine Vorschau; der Editor speichert. Testrezepte: core/tests/fixtures/thermomix_text
   (selbst geschrieben, CC0).
+- 2026-10-05: URL-Import (`converters/web.py` + `schema_org.py`, `POST /api/import/url`, nur Vorschau): eine Seite pro
+  Klick, schema.org-JSON-LD → Text → thermomix_text. Sperrliste `web.BLOCKED_DOMAINS` (Rezeptwelt, MixBuch, Cookidoo),
+  robots.txt, keine privaten IPs (auch nach Redirects), max. 3 MB. httpx ist jetzt Laufzeit-Abhängigkeit.
+  Fallstrick: aiter_bytes() liefert schon entpackte Daten – Content-Encoding nicht ins neue Response übernehmen.
