@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCook – Einstellungen</title>
+    <link rel="icon" href="/static/icons/settings.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main>
+      <nav id="tabs"></nav>
+
+      <form class="card" id="device-form" novalidate>
+        <h2>Gerät</h2>
+        <div class="field">
+          <label for="ip">IP-Adresse</label>
+          <input
+            type="text"
+            id="ip"
+            name="ip"
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="192.168.10.159"
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="token">Token</label>
+          <input
+            type="password"
+            id="token"
+            name="token"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="32 Hex-Zeichen"
+          />
+          <span class="muted" id="token-hint"
+            >Noch kein Token gespeichert.</span
+          >
+        </div>
+        <button type="submit" id="save">Speichern und verbinden</button>
+        <div class="notice" id="device-result" role="status" hidden></div>
+      </form>
+
+      <section class="card">
+        <h2>Anzeige</h2>
+        <label class="switch" for="show_debug">
+          <span>
+            Debug-Werte anzeigen<br />
+            <span class="muted"
+              >Rezept-ID, Typ, Modus und Rohwerte auf der Live-Seite</span
+            >
+          </span>
+          <input type="checkbox" id="show_debug" />
+        </label>
+        <div class="notice" id="display-result" role="status" hidden></div>
+      </section>
+
+      <p class="muted">
+        Den Token holst du mit dem Xiaomi-cloud-tokens-extractor (Server „de“).
+        Er wird nur auf diesem Server gespeichert und nie wieder angezeigt. Leer
+        lassen, um den gespeicherten Token zu behalten.
+      </p>
+    </main>
+
+    <script src="/static/nav.js"></script>
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      function show(el, kind, text) {
+        el.className = `notice ${kind}`;
+        el.textContent = text;
+        el.hidden = false;
+      }
+
+      function fill(settings) {
+        $("ip").value = settings.ip;
+        $("token").value = "";
+        $("token-hint").textContent = settings.token_set
+          ? `Token gespeichert (endet auf ${settings.token_hint.slice(1)}).`
+          : "Noch kein Token gespeichert.";
+        $("show_debug").checked = settings.show_debug;
+      }
+
+      async function save(body) {
+        const r = await fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          const messages = (data.detail ?? []).map((d) =>
+            String(d.msg ?? d).replace(/^Value error, /, ""),
+          );
+          throw new Error(messages.join(" ") || "Speichern fehlgeschlagen.");
+        }
+        return data;
+      }
+
+      $("device-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const result = $("device-result");
+        $("save").disabled = true;
+        show(result, "warn", "Speichere und verbinde …");
+        try {
+          const data = await save({
+            ip: $("ip").value,
+            token: $("token").value,
+          });
+          fill(data.settings);
+          if (!data.settings.configured) {
+            show(result, "warn", "Gespeichert. Es fehlt noch ein Token.");
+          } else if (data.reachable) {
+            show(result, "ok", "Gespeichert. Das Gerät antwortet.");
+          } else {
+            show(
+              result,
+              "warn",
+              "Gespeichert, aber das Gerät antwortet nicht. Ist es im Standby, oder stimmen IP und Token nicht?",
+            );
+          }
+        } catch (err) {
+          show(result, "error", err.message);
+        } finally {
+          $("save").disabled = false;
+        }
+      });
+
+      $("show_debug").addEventListener("change", async (event) => {
+        const result = $("display-result");
+        try {
+          await save({ show_debug: event.target.checked });
+          show(
+            result,
+            "ok",
+            event.target.checked
+              ? "Debug-Werte sichtbar."
+              : "Debug-Werte ausgeblendet.",
+          );
+        } catch (err) {
+          event.target.checked = !event.target.checked;
+          show(result, "error", err.message);
+        }
+      });
+
+      fetch("/api/settings", { cache: "no-store" })
+        .then((r) => r.json())
+        .then(fill);
+    </script>
+  </body>
+</html>
