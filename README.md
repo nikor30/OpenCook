@@ -16,7 +16,8 @@ Reinigungsstatistik – alles in einem Docker-Container im eigenen Netz.
 ## Funktionen
 
 - **Eigene Rezepte:** Editor für Zutaten und Schritte (Maschine, Handgriff, Abwiegen, Warten),
-  Import aus eingefügtem Text in Thermomix-Schreibweise, Austausch als ORF-Datei (JSON).
+  Import aus eingefügtem Text in Thermomix-Schreibweise oder von einer Rezept-URL (schema.org),
+  Austausch als ORF-Datei (JSON).
 - **Koch-Modus:** zeigt jeden Schritt groß an – bei Maschinenschritten Temperatur, Zeit und Stufe zum
   Einstellen am Display. OpenCook erkennt am Gerätestatus, wann der Schritt läuft und fertig ist,
   und springt zum nächsten. Gedacht für ein Tablet neben dem Gerät.
@@ -90,10 +91,22 @@ Zubereitung) einfügen. Angaben wie `10 Min./100°C/Linkslauf/Stufe 1` werden zu
 | Varoma | 120 °C mit Dampfaufsatz – wird zum Prüfen markiert |
 | Teig-Modus / Knetstufe, Turbo | Stufe 4 bzw. 20 – wird zum Prüfen markiert |
 
-Das Ergebnis öffnet sich im Editor zum Prüfen, bevor es gespeichert wird. OpenCook ruft dafür
-keine Webseiten ab: Rezeptseiten wie Rezeptwelt oder MixBuch verbieten automatisches Auslesen in
-ihren Nutzungsbedingungen. Kopierte Rezepte sind nur für den privaten Gebrauch; Bilder werden nicht
-übernommen. Ein Beispielrezept liegt in [docs/examples](docs/examples/).
+Das Ergebnis öffnet sich im Editor zum Prüfen, bevor es gespeichert wird.
+
+**Von einer Webseite:** Unter Einstellungen → *Rezept von einer Webseite importieren* (oder Rezepte →
+*Von Webseite*) eine Rezept-URL eingeben. OpenCook ruft genau diese eine Seite ab, liest die
+eingebetteten schema.org-Rezeptdaten (JSON-LD) und wandelt sie wie beim Text-Import um. Dabei gilt:
+
+- nur eine Seite pro Klick, nur Text, keine Bilder; nur für den privaten Gebrauch
+- `robots.txt` wird beachtet, Adressen im lokalen Netz werden nicht abgerufen
+- gesperrt sind Seiten, deren Nutzungsbedingungen automatisches Auslesen verbieten (Rezeptwelt,
+  MixBuch, Cookidoo). Dort den Rezepttext kopieren und *Text einfügen* nutzen.
+
+Mit dem Schalter **Testmodus** prüft OpenCook eine Adresse nur und zeigt jeden Schritt mit ✓ oder ✗
+an (Sperrliste, Netz, robots.txt, Abruf, Rezeptdaten, Umwandlung) – praktisch, um herauszufinden,
+welche Seiten sich importieren lassen.
+
+Ein Beispielrezept liegt in [docs/examples](docs/examples/).
 
 ## Wie gezählt wird
 
@@ -122,7 +135,7 @@ Oder im Devcontainer (`.devcontainer/`), der alles mitbringt. Projektregeln und 
 | `core/opencook/history/` | Erkennung und Speicherung der Kochvorgänge, Statistik |
 | `core/opencook/recipes/` | Rezeptformat ORF, Speicherung, Gerätegrenzen |
 | `core/opencook/runner/` | Ablauf des Koch-Modus |
-| `core/opencook/converters/` | Import aus Thermomix-Text |
+| `core/opencook/converters/` | Import aus Thermomix-Text und schema.org (URL-Import) |
 | `schemas/orf-v1.json` | JSON-Schema des Rezeptformats (generiert) |
 | `core/opencook/api/` | FastAPI-App und Weboberfläche |
 | `custom_components/opencook/` | Home-Assistant-Integration |

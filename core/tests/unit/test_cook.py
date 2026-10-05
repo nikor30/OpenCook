@@ -2,9 +2,11 @@ import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from opencook.api.app import create_app
+from opencook.converters import web
 from opencook.drivers.base import CookerReader, CookerState
 from opencook.history import HistoryStore
 from opencook.recipes.models import Recipe
@@ -198,3 +200,45 @@ def test_text_import_returns_a_preview_without_saving(tmp_path: Path) -> None:
     assert preview["problems"] == []
     assert empty.status_code == 422
     assert listed == []
+
+
+def test_url_import_refuses_blocked_sites_without_fetching(tmp_path: Path) -> None:
+    with client(tmp_path, FakeReader()) as c:
+        response = c.post("/api/import/url", json={"url": "https://www.rezeptwelt.de/x"})
+
+    assert response.status_code == 422
+    assert "Text einfügen" in response.json()["detail"]
+
+
+def test_url_check_reports_the_failing_step(tmp_path: Path) -> None:
+    with client(tmp_path, FakeReader()) as c:
+        report = c.post("/api/import/url/check", json={"url": "https://mixbuch.app/r/1"}).json()
+
+    assert report["ok"] is False
+    assert report["preview"] is None
+    assert [(x["name"], x["ok"]) for x in report["checks"]] == [("Adresse", False)]
+    assert "MixBuch" in report["checks"][0]["detail"]
+
+
+def test_url_check_success_contains_preview(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    page = (Path(__file__).parents[1] / "fixtures" / "schema_org" / "linsensuppe.html").read_text(
+        encoding="utf-8"
+    )
+
+    async def fake_fetch(url: str, **kwargs: object) -> str:
+        trace = kwargs["trace"]
+        assert isinstance(trace, list)
+        trace.append(web.Check("Abruf", True, "HTTP 200"))
+        return page
+
+    monkeypatch.setattr(web, "fetch_page", fake_fetch)
+    with client(tmp_path, FakeReader()) as c:
+        report = c.post("/api/import/url/check", json={"url": "https://example.org/x"}).json()
+
+    assert report["ok"] is True
+    assert [x["name"] for x in report["checks"]] == ["Abruf", "Rezeptdaten", "Umwandlung"]
+    assert "Recipe" in report["checks"][1]["detail"]
+    assert "3 an der Maschine" in report["checks"][2]["detail"]
+    assert report["preview"]["recipe"]["title"] == "Rote Linsensuppe & Kokos"

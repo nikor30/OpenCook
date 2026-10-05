@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
-from opencook.converters import thermomix_text
+from opencook.converters import schema_org, thermomix_text, web
 from opencook.drivers.base import CookerState
 from opencook.recipes import c3os
 from opencook.recipes.models import MachineStep, Recipe, WaitStep
@@ -39,6 +39,24 @@ class ImportPreview(BaseModel):
     recipe: Recipe
     warnings: list[str]
     problems: list[str]
+
+
+class UrlImport(BaseModel):
+    url: str = Field(min_length=8, max_length=2000)
+
+
+class CheckOut(BaseModel):
+    name: str
+    ok: bool
+    detail: str
+
+
+class UrlCheck(BaseModel):
+    """Test mode of the URL import: every check, plus the preview if it got that far."""
+
+    ok: bool
+    checks: list[CheckOut]
+    preview: ImportPreview | None
 
 
 class CookStart(BaseModel):
@@ -88,7 +106,9 @@ def _require(view: CookView | None) -> CookView:
     return view
 
 
-def make_router(recipes: RecipeStore, cook: CookController) -> APIRouter:
+def make_router(
+    recipes: RecipeStore, cook: CookController, resolver: web.Resolver = web.resolve
+) -> APIRouter:
     router = APIRouter(prefix="/api")
 
     def out(recipe: Recipe) -> RecipeOut:
@@ -122,6 +142,61 @@ def make_router(recipes: RecipeStore, cook: CookController) -> APIRouter:
             recipe=result.recipe,
             warnings=result.warnings,
             problems=c3os.problems(result.recipe),
+        )
+
+    @router.get("/import/blocked")
+    async def blocked_sites() -> dict[str, str]:
+        """Sites whose terms forbid automated reading; the URL import refuses them."""
+        return web.BLOCKED_DOMAINS
+
+    @router.post("/import/url")
+    async def import_url(body: UrlImport) -> ImportPreview:
+        """Fetches one page and converts its schema.org recipe into a preview; nothing is saved."""
+        try:
+            page = await web.fetch_page(body.url, resolver=resolver)
+            result = schema_org.convert_page(page, body.url.strip())
+        except ValueError as err:  # ImportRefused, NoRecipeFound, conversion errors
+            raise HTTPException(422, str(err)) from err
+        return ImportPreview(
+            recipe=result.recipe,
+            warnings=result.warnings,
+            problems=c3os.problems(result.recipe),
+        )
+
+    @router.post("/import/url/check")
+    async def check_url(body: UrlImport) -> UrlCheck:
+        """Runs the URL import step by step and reports each check; nothing is saved."""
+        trace: list[web.Check] = []
+
+        def report(ok: bool, preview: ImportPreview | None = None) -> UrlCheck:
+            checks = [CheckOut(name=c.name, ok=c.ok, detail=c.detail) for c in trace]
+            return UrlCheck(ok=ok, checks=checks, preview=preview)
+
+        try:
+            page = await web.fetch_page(body.url, resolver=resolver, trace=trace)
+        except web.ImportRefusedError:
+            return report(False)
+        types = schema_org.json_ld_types(page)
+        found = schema_org.find_recipe(page) is not None
+        detail = f"schema.org-Typen: {', '.join(types)}" if types else "keine schema.org-Daten"
+        trace.append(web.Check("Rezeptdaten", found, detail))
+        if not found:
+            return report(False)
+        try:
+            result = schema_org.convert_page(page, body.url.strip())
+        except ValueError as err:
+            trace.append(web.Check("Umwandlung", False, str(err)))
+            return report(False)
+        recipe = result.recipe
+        machine = sum(isinstance(s, MachineStep) for s in recipe.steps)
+        summary = (
+            f"„{recipe.title}“: {len(recipe.ingredients)} Zutaten, {len(recipe.steps)} Schritte, "
+            f"davon {machine} an der Maschine"
+        )
+        trace.append(web.Check("Umwandlung", True, summary))
+        problems = c3os.problems(recipe)
+        return report(
+            True, ImportPreview(recipe=recipe, warnings=result.warnings, problems=problems)
         )
 
     @router.get("/recipes/{recipe_id}")
