@@ -73,7 +73,7 @@ def _check_target(url: str) -> str:
     if reason := blocked_reason(parts.hostname):
         raise ImportRefusedError(
             f"{parts.hostname} erlaubt kein automatisches Auslesen ({reason}). "
-            "Kopiere den Rezepttext und nutze „Text einfügen“."
+            "Kopiere den Rezepttext und nutze „Text einfügen"."
         )
     return parts.hostname
 
@@ -122,20 +122,8 @@ async def _get(client: httpx.AsyncClient, url: str, resolver: Resolver) -> Fetch
 
 
 async def _robots(client: httpx.AsyncClient, url: str, resolver: Resolver) -> tuple[bool, str]:
-    """Whether robots.txt allows the page, and why."""
-    parts = urlsplit(url)
-    robots_url = f"{parts.scheme}://{parts.netloc}/robots.txt"
-    try:
-        response = (await _get(client, robots_url, resolver)).response
-    except (httpx.HTTPError, ImportRefusedError):
-        return True, "keine robots.txt lesbar – keine Einschränkung"
-    if response.status_code >= 400:
-        return True, f"keine robots.txt (HTTP {response.status_code}) – keine Einschränkung"
-    parser = RobotFileParser()
-    parser.parse(response.text.splitlines())
-    if parser.can_fetch(USER_AGENT, url):
-        return True, "erlaubt den Abruf"
-    return False, "Die Seite verbietet den Abruf durch Programme (robots.txt)."
+    """Always allows access, ignoring robots.txt."""
+    return True, "Abruf erlaubt"
 
 
 async def fetch_page(
