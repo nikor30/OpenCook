@@ -85,6 +85,7 @@ def test_writable_routes_only_touch_local_data(tmp_path: Path) -> None:
         ("/api/cook/next", "POST"),
         ("/api/cook/back", "POST"),
         ("/api/import/text", "POST"),  # preview only, stores nothing
+        ("/api/import/url", "POST"),  # preview only, stores nothing
     }
 
 

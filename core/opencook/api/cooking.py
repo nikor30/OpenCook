@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
-from opencook.converters import thermomix_text
+from opencook.converters import schema_org, thermomix_text, web
 from opencook.drivers.base import CookerState
 from opencook.recipes import c3os
 from opencook.recipes.models import MachineStep, Recipe, WaitStep
@@ -39,6 +39,10 @@ class ImportPreview(BaseModel):
     recipe: Recipe
     warnings: list[str]
     problems: list[str]
+
+
+class UrlImport(BaseModel):
+    url: str = Field(min_length=8, max_length=2000)
 
 
 class CookStart(BaseModel):
@@ -88,7 +92,9 @@ def _require(view: CookView | None) -> CookView:
     return view
 
 
-def make_router(recipes: RecipeStore, cook: CookController) -> APIRouter:
+def make_router(
+    recipes: RecipeStore, cook: CookController, resolver: web.Resolver = web.resolve
+) -> APIRouter:
     router = APIRouter(prefix="/api")
 
     def out(recipe: Recipe) -> RecipeOut:
@@ -117,6 +123,25 @@ def make_router(recipes: RecipeStore, cook: CookController) -> APIRouter:
         try:
             result = thermomix_text.convert(body.text, body.origin)
         except ValueError as err:
+            raise HTTPException(422, str(err)) from err
+        return ImportPreview(
+            recipe=result.recipe,
+            warnings=result.warnings,
+            problems=c3os.problems(result.recipe),
+        )
+
+    @router.get("/import/blocked")
+    async def blocked_sites() -> dict[str, str]:
+        """Sites whose terms forbid automated reading; the URL import refuses them."""
+        return web.BLOCKED_DOMAINS
+
+    @router.post("/import/url")
+    async def import_url(body: UrlImport) -> ImportPreview:
+        """Fetches one page and converts its schema.org recipe into a preview; nothing is saved."""
+        try:
+            page = await web.fetch_page(body.url, resolver=resolver)
+            result = schema_org.convert_page(page, body.url.strip())
+        except ValueError as err:  # ImportRefused, NoRecipeFound, conversion errors
             raise HTTPException(422, str(err)) from err
         return ImportPreview(
             recipe=result.recipe,

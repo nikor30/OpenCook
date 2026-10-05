@@ -198,3 +198,11 @@ def test_text_import_returns_a_preview_without_saving(tmp_path: Path) -> None:
     assert preview["problems"] == []
     assert empty.status_code == 422
     assert listed == []
+
+
+def test_url_import_refuses_blocked_sites_without_fetching(tmp_path: Path) -> None:
+    with client(tmp_path, FakeReader()) as c:
+        response = c.post("/api/import/url", json={"url": "https://www.rezeptwelt.de/x"})
+
+    assert response.status_code == 422
+    assert "Text einfügen" in response.json()["detail"]

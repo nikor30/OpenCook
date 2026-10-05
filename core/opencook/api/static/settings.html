@@ -43,6 +43,31 @@
         <div class="notice" id="device-result" role="status" hidden></div>
       </form>
 
+      <form class="card" id="url-import" novalidate>
+        <h2>Rezept von einer Webseite importieren</h2>
+        <div class="field">
+          <label for="url">Adresse des Rezepts</label>
+          <input
+            type="text"
+            id="url"
+            inputmode="url"
+            autocomplete="off"
+            placeholder="https://…"
+          />
+        </div>
+        <button type="submit" id="url-submit">Importieren und prüfen</button>
+        <div class="notice" id="url-result" role="status" hidden></div>
+        <p class="muted">
+          OpenCook ruft genau diese eine Seite ab und liest die eingebetteten
+          Rezeptdaten (schema.org), nur Text, keine Bilder. Das Rezept öffnet
+          sich danach im Editor. Nur für den privaten Gebrauch. Seiten, deren
+          robots.txt das verbietet, werden nicht abgerufen. Gesperrt, weil die
+          Nutzungsbedingungen automatisches Auslesen verbieten:
+          <span id="blocked">…</span>. Dort den Rezepttext kopieren und unter
+          Rezepte → „Text einfügen“ einfügen.
+        </p>
+      </form>
+
       <section class="card">
         <h2>Anzeige</h2>
         <label class="switch" for="show_debug">
@@ -144,6 +169,43 @@
           show(result, "error", err.message);
         }
       });
+
+      $("url-import").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const result = $("url-result");
+        $("url-submit").disabled = true;
+        show(result, "warn", "Lade die Seite …");
+        try {
+          const r = await fetch("/api/import/url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: $("url").value }),
+          });
+          const data = await r.json();
+          if (!r.ok) {
+            const detail = data.detail;
+            throw new Error(
+              Array.isArray(detail)
+                ? "Bitte eine vollständige Adresse eingeben."
+                : detail,
+            );
+          }
+          sessionStorage.setItem("opencook-import", JSON.stringify(data));
+          location.href = "/recipes/edit?draft=1";
+        } catch (err) {
+          show(result, "error", err.message);
+        } finally {
+          $("url-submit").disabled = false;
+        }
+      });
+
+      fetch("/api/import/blocked")
+        .then((r) => r.json())
+        .then(
+          (sites) => ($("blocked").textContent = Object.keys(sites).join(", ")),
+        );
+
+      if (location.hash === "#url-import") $("url").focus();
 
       fetch("/api/settings", { cache: "no-store" })
         .then((r) => r.json())
