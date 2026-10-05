@@ -8,7 +8,7 @@ FastAPI-Core + React-Web-GUI + Home Assistant (MQTT Discovery) + Rezept-Konverte
 Fahrplan & Phasen: **KICKSTART.md**. Protokollwissen: **docs/protocol/xiaomi-c3os.md**.
 
 ## Status
-- Aktuelle Phase: 1 (Recon) – Phase 0 (Setup) erledigt 2026-10-05
+- Aktuelle Phase: 1 (Recon) – Phase 0 (Setup) erledigt 2026-10-05; Read-only-Webansicht läuft (core + Statusseite)
 - Offene Kernfragen: Q1 recipe-command-Format, Q3 Rückwärtslauf per API, Q4 Speed-Mapping, Q7 Live-Gewicht
   (Details KICKSTART.md §1)
 
@@ -30,7 +30,8 @@ Fahrplan & Phasen: **KICKSTART.md**. Protokollwissen: **docs/protocol/xiaomi-c3o
 
 ## Befehle
 ```bash
-docker compose --profile sim up        # alles mit Simulator
+docker compose up -d --build            # Read-only-Webansicht auf :8080 (braucht .env)
+docker compose --profile sim up        # alles mit Simulator (ab Phase 3)
 pip install -e "core[dev]"             # Dev-Umgebung (im Devcontainer automatisch)
 pytest -q core/tests                   # Backend-Tests
 pre-commit run --all-files             # ruff, mypy --strict, prettier, gitleaks
@@ -59,4 +60,5 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
 - 2026-10-05: Laut Nutzer kann die Mi-Home-App das Gerät NICHT steuern, nur Rezepte favorisieren → Phase 2a
   (Plugin-Analyse für Steuerbefehle) entfällt. Neuer Ansatz: Rezept-Sync Gerät↔Cloud beobachten (Domains, TLS,
   Pinning) und prüfen, ob ein lokaler Cloud-Ersatz eigene Rezepte ausliefern kann. Geräte-Spitzname: „Bimbi“.
-
+- 2026-10-05: Read-only-Webansicht: `opencook.api.app` pollt per `XiaomiC3osReader` (nur get_properties) und liefert
+  `/api/state` + Statusseite unter `/`. Die API hat bewusst nur GET-Routen (Test sichert das ab).
