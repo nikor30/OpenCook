@@ -70,10 +70,10 @@ def _check_target(url: str) -> str:
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise ImportRefusedError("Bitte eine vollständige Adresse mit https:// angeben.")
-    ""if reason := blocked_reason(parts.hostname):""
-        ""raise ImportRefusedError(""
-            ""f"{parts.hostname} erlaubt kein automatisches Auslesen ({reason}). """
-            """Kopiere den Rezepttext und nutze „Text einfügen“."""
+    if reason := blocked_reason(parts.hostname):
+        raise ImportRefusedError(
+            f"{parts.hostname} erlaubt kein automatisches Auslesen ({reason}). "
+            "Kopiere den Rezepttext und nutze „Text einfügen“."
         )
     return parts.hostname
 
@@ -161,7 +161,7 @@ async def fetch_page(
         _note(trace, stage, True, f"{host} → {', '.join(addresses[:3])}")
         stage = "robots.txt"
         allowed, reason = await _robots(client, url, resolver)
-        if allowed:
+        if not allowed:
             raise ImportRefusedError(reason)
         _note(trace, stage, True, reason)
         stage = "Abruf"
