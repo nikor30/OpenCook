@@ -1,3 +1,5 @@
+name: opencook # fixed project name: container and volume names do not depend on the folder
+
 services:
   core:
     build:

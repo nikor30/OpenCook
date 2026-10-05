@@ -74,3 +74,6 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
   Einzige schreibende Route ist `PUT /api/settings` (Test sichert das ab); das Gerät bleibt read-only.
 - 2026-10-05: README-Screenshots: `tools/screenshots.py` im Playwright-Image; ersetzt den Token-Hinweis und
   nutzt Demo-Statistik. Test-Konstanten nicht `TOKEN = "<32 hex>"` nennen – sonst schlägt gitleaks an.
+- 2026-10-05: Repo heißt jetzt `nikor30/OpenCook` (vorher `cookingrobots`, GitHub leitet um). Compose-Projektname fest
+  `opencook` → Container `opencook-core-1`, Volume `opencook_opencook-data`. Altes Volume `cookingrobots_opencook-data`
+  ist nur noch Sicherungskopie.

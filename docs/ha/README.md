@@ -5,7 +5,7 @@ Assistant an. Sie fragt nur den OpenCook-Core ab (`docker compose up -d`, Port 8
 
 ## Installation
 
-**HACS:** HACS → ⋮ → Benutzerdefinierte Repositories → `https://github.com/nikor30/cookingrobots`,
+**HACS:** HACS → ⋮ → Benutzerdefinierte Repositories → `https://github.com/nikor30/OpenCook`,
 Typ „Integration“ → OpenCook installieren → HA neu starten.
 
 **Manuell:** den Ordner `custom_components/opencook` nach `<HA-Konfiguration>/custom_components/`
