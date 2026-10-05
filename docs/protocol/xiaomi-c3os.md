@@ -1,6 +1,6 @@
 # Protokoll `chunmi.mfcp.c3os` (Xiaomi Smart Cooking Robot EU)
 
-**Version:** 0.0 – nur öffentliche MIoT-Spec, noch nichts am Gerät verifiziert.
+**Version:** 0.1 – MIoT-Spec plus erster lokaler Lesezugriff (2026-10-05, Firmware `1.0_179`).
 Clean-Room: hier steht nur beobachtetes Verhalten/Format, kein Code und keine Inhalte aus dem Mi-Home-Plugin.
 
 Transport: miIO, UDP 54321, lokal mit Geräte-Token. Quelle der Spec: <https://home.miot-spec.com/spec/chunmi.mfcp.c3os>
@@ -50,6 +50,32 @@ Actions: set/get-setting, toggle weighing, get remaining time, set duration/temp
   ein damit verschlüsseltes `miIO.info` bleibt unbeantwortet. Der Token muss aus der Cloud kommen.
 - TCP 1–65535: alle Ports geschlossen (RST). Kein ADB (5555), kein HTTP, kein RTSP → Q8 für TCP
   beantwortet. UDP-Scan steht noch aus.
+
+## Lokaler Zugriff (verifiziert 2026-10-05)
+
+- `miIO.info` mit Cloud-Token funktioniert: `model chunmi.mfcp.c3os`, `fw_ver 1.0_179`,
+  `hw_ver Android`, `miio_ver 0.0.9`, `miio_client_ver 4.3.2`. Das Gerät ist also Android-basiert.
+- **`did` muss die echte Device-ID sein** (Dezimalstring aus dem Hello-Header). Mit beliebigem `did`
+  antwortet jede Property mit `code -4007`; ohne `did` kommt eine leere Ergebnisliste.
+- `get_properties` liefert alle Properties aus siid 2, 3 und 4 (piid 3–14). Legacy-`get_prop` liefert nichts.
+- siid 1 (Device Information) piid 1–5 ist lesbar, aber leer bzw. `"0"`.
+- Im Standby meldet das Gerät sich aus dem WLAN ab (kein Ping, kein Hello). Der Treiber muss
+  „nicht erreichbar“ daher als normalen Zustand behandeln, nicht als Fehler.
+
+Werte im Standby (Display an, nichts läuft):
+
+| Property | Wert | | Property | Wert |
+| --- | --- | --- | --- | --- |
+| 2.1 status | 0 | | 4.6 reserved | 0 (int) |
+| 2.2 mode | 0 | | 4.7 reserved | 0 (int) |
+| 2.3 left-time | 0 | | 4.8 reserved | **true** (bool) |
+| 2.4 on | false | | 4.9 reserved | 0 (int) |
+| 2.5 fault | 0 | | 4.10 cook-duration | 0 |
+| 2.10 recipe-command | `""` | | 4.11 cook-temp | 0 |
+| 3.1 alarm | false | | 4.12 cook-speed | 0 |
+| 3.2 volume | 0 | | 4.13 weigh-activity | false |
+| 4.3 cook-id | 0 | | 4.14 remaining-time | 0 |
+| 4.4 cook-type | 0 | | 4.5 cook-name | `""` |
 
 ## Offene Fragen
 

@@ -44,4 +44,7 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
 - 2026-10-05: `miiocli genericmiot` gibt es nur auf python-miio master (0.6 dev), nicht in 0.5.x → Pin in
   `.devcontainer/post-create.sh`.
 - 2026-10-05: Gerät hat keinen offenen TCP-Port (kein ADB/HTTP); nur miIO UDP 54321. Hello-Antwort liefert keinen
-  brauchbaren Token → Token per Cloud-Extractor nötig. IP steht in `.env` (nicht im Repo).
+  brauchbaren Token → Token per Cloud-Extractor nötig. IP + Token stehen in `.env` (nicht im Repo).
+- 2026-10-05: Lokaler Lesezugriff läuft. `get_properties` braucht die echte Device-ID als `did`, sonst `-4007`.
+  Gerät ist Android-basiert (fw 1.0_179) und verschwindet im Standby aus dem WLAN → vor Tests aufwecken.
+- 2026-10-05: Keine Portscans mehr gegen das Gerät (bringt nichts, alle TCP-Ports zu).
