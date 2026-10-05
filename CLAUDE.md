@@ -8,7 +8,7 @@ FastAPI-Core + React-Web-GUI + Home Assistant (MQTT Discovery) + Rezept-Konverte
 Fahrplan & Phasen: **KICKSTART.md**. Protokollwissen: **docs/protocol/xiaomi-c3os.md**.
 
 ## Status
-- Aktuelle Phase: 0 (Setup)
+- Aktuelle Phase: 1 (Recon) – Phase 0 (Setup) erledigt 2026-10-05
 - Offene Kernfragen: Q1 recipe-command-Format, Q3 Rückwärtslauf per API, Q4 Speed-Mapping, Q7 Live-Gewicht
   (Details KICKSTART.md §1)
 
@@ -31,9 +31,15 @@ Fahrplan & Phasen: **KICKSTART.md**. Protokollwissen: **docs/protocol/xiaomi-c3o
 ## Befehle
 ```bash
 docker compose --profile sim up        # alles mit Simulator
+pip install -e "core[dev]"             # Dev-Umgebung (im Devcontainer automatisch)
 pytest -q core/tests                   # Backend-Tests
+pre-commit run --all-files             # ruff, mypy --strict, prettier, gitleaks
 python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVICE_IP, OC_DEVICE_TOKEN)
 ```
 
 ## Erkenntnisse (laufend ergänzen, mit Datum)
 - 2026-10-03: MIoT-Spec c3os: siid4 piid10/11/12 = Dauer/Temp/Speed (R/W), siid2 aiid4 start-recipe-cook(recipe-command string, Format unbekannt).
+- 2026-10-05: gitleaks-Defaultregeln erkennen nackte miIO-Tokens (32 Hex) nicht → eigene Regeln in `.gitleaks.toml`.
+  Der pre-commit-Hook scannt nur Staged-Änderungen; die komplette Historie prüft der CI-Job `secrets`.
+- 2026-10-05: `miiocli genericmiot` gibt es nur auf python-miio master (0.6 dev), nicht in 0.5.x → Pin in
+  `.devcontainer/post-create.sh`.
