@@ -56,3 +56,22 @@ cook-id, cook-type und cook-name bleiben nach dem Abbruch stehen.
 `cook-name`. `remaining-time` ist die Dauer des laufenden Schritts bzw. Rezepts (1500 s).
 `recipe-command` wird bei einem am Display gestarteten Rezept **nicht** befüllt – das Format (Q1) lässt
 sich durch Mitlesen nicht gewinnen. Auch bei Rezepten ist `mode` 5; die Werte 1–4 wurden nie gesehen.
+
+## 2026-10-05 – E6 Steuern per API (30 s / 0 °C / Speed 1 bzw. 5, Nutzer am Gerät)
+
+| Versuch | Antwort | Wirkung |
+| --- | --- | --- |
+| `get-setting` (4/2), `get-time` (4/4) | code 0, liefern 4.8 = true bzw. 4.14 = 0 | – |
+| `set_properties` 4.10 / 4.11 / 4.12 | code 0, Werte lesen sich zurück | Display zeigt weiter 0 |
+| `set-duration` / `set-temp` / `set-speed` (4/5–7) | code 0 | Display zeigt weiter 0 |
+| `start-cook` (2/1) bei mode 0 | code 0 | nichts: status bleibt 0, Display und Motor reagieren nicht |
+| `start-cook` bei mode 5 | code 0 | nichts |
+| `set_properties` 2.4 on = true, danach `start-cook` | code 0, 2.4 liest sich als true | nichts |
+
+Zwischendurch (09:54:43) lief ein manueller Lauf über 20 s, den der Logger als `Handbuch` zeigt. Er wurde
+nicht per API ausgelöst (letzter Befehl davor 09:51:59); Ursache noch nicht geklärt.
+
+**Ergebnis:** Das Gerät quittiert alle Schreibzugriffe und Aktionen mit code 0, führt aber keine davon
+aus. Die schreibbaren Properties verhalten sich wie ein reiner Speicher ohne Verbindung zur Koch-App.
+Lokales Starten/Setzen über die Spec-Aktionen funktioniert so nicht (Q3/Q4 weiter offen).
+Nach dem Versuch wurden 2.4, 4.10 und 4.12 auf die Ausgangswerte zurückgesetzt.

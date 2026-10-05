@@ -112,6 +112,17 @@ Details in `research/notes/experiments.md`.
 - `recipe-command` bleibt leer. Der Parameter wird nur als Eingabe von `start-recipe-cook` verwendet,
   nie vom Gerät zurückgemeldet.
 
+## Schreibzugriffe und Aktionen (2026-10-05)
+
+- `set_properties` auf 2.4, 4.10, 4.11, 4.12 und die Aktionen siid 4 aiid 2, 4, 5, 6, 7 sowie
+  siid 2 aiid 1 (`start-cook`) antworten alle mit `code 0`.
+- Aktionsparameter werden als einfache Werteliste akzeptiert: `{"did", "siid", "aiid", "in": [30]}`.
+  Ausgaben kommen als `"out": [{"piid": 8, "value": true}]`.
+- **Keiner dieser Aufrufe hatte eine sichtbare Wirkung**: gesetzte Werte erscheinen nicht am Display,
+  `start-cook` startet nichts (getestet mit mode 0 und 5, mit und ohne `on = true`).
+  Gesetzte Werte lesen sich aber zurück – die Properties wirken wie ein Speicher ohne Anbindung an
+  die Koch-App.
+
 ## Offene Fragen
 
 Q1–Q8 siehe KICKSTART.md §1. Antworten werden hier mit Datum und Experiment-Referenz (E1–E6) nachgetragen.

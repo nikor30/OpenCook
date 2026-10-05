@@ -53,4 +53,7 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
   docs/protocol. Notizen: research/notes/experiments.md.
 - 2026-10-05: E4: offizielles Rezept → cook-id numerisch, cook-type 4, cook-name = Titel; recipe-command bleibt
   leer. Q1 ist durch Mitlesen am Gerät nicht lösbar → Plugin-Analyse (Phase 2a) oder Raten mit cook-id (E6).
+- 2026-10-05: E6: set_properties und alle Aktionen (inkl. start-cook) antworten code 0, bewirken aber NICHTS am
+  Gerät. Lokale Steuerung über die Spec-Aktionen ist damit vorerst nicht belegt → Phase 2a/2b (Plugin, App↔Cloud)
+  muss zeigen, welche Befehle die App wirklich schickt.
 
