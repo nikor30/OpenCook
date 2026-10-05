@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCook – Rezepte</title>
+    <link rel="icon" href="/static/icons/recipes.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/app.css" />
+    <style>
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .toolbar h1 {
+        flex: 1;
+      }
+      .recipe {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 4px 12px;
+        align-items: center;
+      }
+      .recipe h2 {
+        margin: 0;
+        color: var(--text);
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+      .recipe .actions {
+        grid-row: span 2;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .tag {
+        display: inline-block;
+        padding: 1px 8px;
+        margin-right: 4px;
+        border-radius: 999px;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav id="tabs"></nav>
+
+      <section class="card notice warn" id="active-run" hidden></section>
+
+      <div class="toolbar">
+        <h1>Rezepte</h1>
+        <button type="button" class="secondary" id="paste-open">
+          Text einfügen
+        </button>
+        <label class="button secondary" for="import">Datei importieren</label>
+        <input type="file" id="import" accept="application/json,.json" hidden />
+        <a class="button" href="/recipes/edit">Neues Rezept</a>
+      </div>
+
+      <section class="card" id="paste" hidden>
+        <h2>Rezepttext einfügen</h2>
+        <p class="muted">
+          Rezept im Browser öffnen, Titel, Zutaten und Zubereitung markieren,
+          kopieren und hier einfügen. Angaben wie „10 Min./100°C/Linkslauf/Stufe
+          1“ werden zu Maschinenschritten für Bimbi. Nur Text – Bilder werden
+          nicht übernommen.
+        </p>
+        <textarea
+          id="paste-text"
+          rows="12"
+          placeholder="Tomatensauce&#10;4 Portionen&#10;Zutaten&#10;1 Zwiebel&#10;20 g Olivenöl&#10;Zubereitung&#10;1. Zwiebel 5 Sek./Stufe 5 zerkleinern.&#10;2. Öl zugeben, 3 Min./120°C/Stufe 1 dünsten."
+        ></textarea>
+        <div class="row" style="margin-top: 12px">
+          <button type="button" id="paste-convert">Umwandeln und prüfen</button>
+          <button type="button" class="secondary" id="paste-cancel">
+            Abbrechen
+          </button>
+        </div>
+      </section>
+
+      <div class="notice" id="message" role="status" hidden></div>
+      <div id="list" class="stack"></div>
+
+      <p class="muted">
+        Kochen heißt hier: OpenCook zeigt dir jeden Schritt an, du stellst ihn
+        am Display ein und drückst Start. OpenCook merkt, wann der Schritt
+        fertig ist, und zeigt den nächsten. Rezepte kommen per eingefügtem Text
+        oder als ORF-Datei (JSON) herein; „Export“ speichert sie als ORF-Datei.
+      </p>
+    </main>
+
+    <script src="/static/nav.js"></script>
+    <script src="/static/api.js"></script>
+    <script>
+      function show(kind, text) {
+        $("message").className = `notice ${kind}`;
+        $("message").textContent = text;
+        $("message").hidden = false;
+      }
+
+      async function cook(id) {
+        try {
+          await api("/api/cook", { method: "POST", json: { recipe_id: id } });
+          location.href = "/cook";
+        } catch (err) {
+          show("error", err.message);
+        }
+      }
+
+      async function exportRecipe(summary) {
+        const { recipe } = await api(`/api/recipes/${summary.id}`);
+        const blob = new Blob([JSON.stringify(recipe, null, 2)], {
+          type: "application/json",
+        });
+        const link = el("a", {
+          href: URL.createObjectURL(blob),
+          download: `${summary.title.replace(/[^\p{L}\p{N}]+/gu, "-")}.orf.json`,
+        });
+        link.click();
+        URL.revokeObjectURL(link.href);
+      }
+
+      async function remove(summary) {
+        if (!confirm(`„${summary.title}“ löschen?`)) return;
+        await api(`/api/recipes/${summary.id}`, { method: "DELETE" });
+        load();
+      }
+
+      async function load() {
+        const [recipes, run] = await Promise.all([
+          api("/api/recipes"),
+          api("/api/cook"),
+        ]);
+        const active = run && !run.run.finished;
+        $("active-run").hidden = !active;
+        if (active) {
+          $("active-run").replaceChildren(
+            "Gerade läuft „",
+            run.run.recipe.title,
+            "“. ",
+            el("a", { href: "/cook" }, "Zum Koch-Modus"),
+          );
+        }
+        $("list").replaceChildren(
+          ...(recipes.length
+            ? recipes.map((r) =>
+                el(
+                  "section",
+                  { class: "card recipe" },
+                  el("h2", {}, r.title),
+                  el(
+                    "div",
+                    { class: "actions" },
+                    el(
+                      "button",
+                      { onclick: () => cook(r.id), disabled: active },
+                      "Kochen",
+                    ),
+                    el(
+                      "a",
+                      {
+                        class: "button secondary",
+                        href: `/recipes/edit?id=${r.id}`,
+                      },
+                      "Bearbeiten",
+                    ),
+                    el(
+                      "button",
+                      { class: "secondary", onclick: () => exportRecipe(r) },
+                      "Export",
+                    ),
+                    el(
+                      "button",
+                      { class: "secondary danger", onclick: () => remove(r) },
+                      "Löschen",
+                    ),
+                  ),
+                  el(
+                    "div",
+                    { class: "muted" },
+                    `${r.steps} Schritte · ${r.machine_steps} an der Maschine · ${duration(r.duration_s)} Maschinenzeit`,
+                    r.servings ? ` · ${r.servings} Portionen` : "",
+                    " ",
+                    r.tags.map((t) => el("span", { class: "tag" }, t)),
+                  ),
+                ),
+              )
+            : [
+                el(
+                  "section",
+                  { class: "card empty" },
+                  "Noch keine Rezepte. Lege eins an oder importiere eine ORF-Datei.",
+                ),
+              ]),
+        );
+      }
+
+      $("paste-open").addEventListener("click", () => {
+        $("paste").hidden = false;
+        $("paste-text").focus();
+      });
+      $("paste-cancel").addEventListener(
+        "click",
+        () => ($("paste").hidden = true),
+      );
+      $("paste-convert").addEventListener("click", async () => {
+        try {
+          const preview = await api("/api/import/text", {
+            method: "POST",
+            json: { text: $("paste-text").value },
+          });
+          sessionStorage.setItem("opencook-import", JSON.stringify(preview));
+          location.href = "/recipes/edit?draft=1";
+        } catch (err) {
+          show("error", `Umwandeln fehlgeschlagen: ${err.message}`);
+        }
+      });
+
+      $("import").addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        event.target.value = "";
+        if (!file) return;
+        try {
+          const recipe = JSON.parse(await file.text());
+          delete recipe.id; // always import as a new recipe
+          const saved = await api("/api/recipes", {
+            method: "POST",
+            json: recipe,
+          });
+          show(
+            saved.problems.length ? "warn" : "ok",
+            saved.problems.length
+              ? `Importiert, aber nicht kochbar: ${saved.problems.join(" ")}`
+              : `„${saved.recipe.title}“ importiert.`,
+          );
+          load();
+        } catch (err) {
+          show("error", `Import fehlgeschlagen: ${err.message}`);
+        }
+      });
+
+      load();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,513 @@
+{
+  "$defs": {
+    "Ingredient": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "amount": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Amount"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Ingredient",
+      "type": "object"
+    },
+    "MachineParams": {
+      "additionalProperties": false,
+      "properties": {
+        "temp_c": {
+          "anyOf": [
+            {
+              "maximum": 250,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None: no heating",
+          "title": "Temp C"
+        },
+        "duration_s": {
+          "maximum": 14400,
+          "minimum": 1,
+          "title": "Duration S",
+          "type": "integer"
+        },
+        "speed": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Speed"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "accessory": {
+          "default": "none",
+          "enum": [
+            "none",
+            "whisk",
+            "steamer",
+            "basket"
+          ],
+          "title": "Accessory",
+          "type": "string"
+        }
+      },
+      "required": [
+        "duration_s"
+      ],
+      "title": "MachineParams",
+      "type": "object"
+    },
+    "MachineStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "kind": {
+          "const": "machine",
+          "default": "machine",
+          "title": "Kind",
+          "type": "string"
+        },
+        "machine": {
+          "$ref": "#/$defs/MachineParams"
+        }
+      },
+      "required": [
+        "id",
+        "machine"
+      ],
+      "title": "MachineStep",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "default": "manual",
+          "enum": [
+            "manual",
+            "converted"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License"
+        }
+      },
+      "title": "Source",
+      "type": "object"
+    },
+    "Speed": {
+      "additionalProperties": false,
+      "description": "Stirring speed as `level` on a scale of `of` steps, so recipes from devices with other\nscales can be mapped (e.g. Thermomix 1–10, Bimbi 1–20).",
+      "properties": {
+        "level": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Level",
+          "type": "integer"
+        },
+        "of": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Of",
+          "type": "integer"
+        },
+        "direction": {
+          "default": "forward",
+          "enum": [
+            "forward",
+            "reverse"
+          ],
+          "title": "Direction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "level"
+      ],
+      "title": "Speed",
+      "type": "object"
+    },
+    "UserStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "kind": {
+          "const": "user",
+          "default": "user",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "UserStep",
+      "type": "object"
+    },
+    "WaitStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "kind": {
+          "const": "wait",
+          "default": "wait",
+          "title": "Kind",
+          "type": "string"
+        },
+        "duration_s": {
+          "maximum": 86400,
+          "minimum": 1,
+          "title": "Duration S",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "duration_s"
+      ],
+      "title": "WaitStep",
+      "type": "object"
+    },
+    "WeighStep": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 40,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "kind": {
+          "const": "weigh",
+          "default": "weigh",
+          "title": "Kind",
+          "type": "string"
+        },
+        "ingredient": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ingredient"
+        },
+        "target_g": {
+          "maximum": 5000,
+          "minimum": 1,
+          "title": "Target G",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "target_g"
+      ],
+      "title": "WeighStep",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "orf_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Orf Version",
+      "type": "integer"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "servings": {
+      "anyOf": [
+        {
+          "maximum": 100,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Servings"
+    },
+    "tags": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "images": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Images",
+      "type": "array"
+    },
+    "source": {
+      "$ref": "#/$defs/Source",
+      "default": {
+        "type": "manual",
+        "origin": null,
+        "license": null
+      }
+    },
+    "ingredients": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Ingredient"
+      },
+      "title": "Ingredients",
+      "type": "array"
+    },
+    "steps": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "machine": "#/$defs/MachineStep",
+            "user": "#/$defs/UserStep",
+            "wait": "#/$defs/WaitStep",
+            "weigh": "#/$defs/WeighStep"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/MachineStep"
+          },
+          {
+            "$ref": "#/$defs/UserStep"
+          },
+          {
+            "$ref": "#/$defs/WeighStep"
+          },
+          {
+            "$ref": "#/$defs/WaitStep"
+          }
+        ]
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "title",
+    "steps"
+  ],
+  "title": "Recipe",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/nikor30/OpenCook/schemas/orf-v1.json"
+}

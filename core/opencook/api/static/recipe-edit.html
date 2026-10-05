@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenCook – Rezept bearbeiten</title>
+    <link rel="icon" href="/static/icons/recipes.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/app.css" />
+    <style>
+      .grid2 {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 12px;
+      }
+      .ingredient {
+        display: grid;
+        grid-template-columns: 2.5em 2fr 1fr 1fr auto;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .ingredient code,
+      .chip {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+        display: grid;
+        gap: 10px;
+      }
+      .step header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .step header strong {
+        flex: 1;
+      }
+      .step header button {
+        padding: 6px 10px;
+      }
+      .machine {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        align-items: end;
+      }
+      .machine label,
+      .weigh label {
+        display: grid;
+        gap: 4px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .check {
+        display: flex !important;
+        align-items: center;
+        gap: 6px;
+        padding-bottom: 10px;
+      }
+      .weigh {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 8px;
+      }
+      .chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        border: 1px dashed var(--line);
+        border-radius: 999px;
+        padding: 2px 10px;
+        background: transparent;
+        cursor: pointer;
+        font-weight: 400;
+      }
+      .problems li {
+        margin-bottom: 4px;
+      }
+      @media (max-width: 560px) {
+        .machine {
+          grid-template-columns: 1fr 1fr;
+        }
+        .ingredient {
+          grid-template-columns: 2fr 1fr 1fr auto;
+        }
+        .ingredient code {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav id="tabs"></nav>
+      <h1 id="heading">Neues Rezept</h1>
+      <section class="card notice warn" id="draft-notes" hidden></section>
+
+      <section class="card">
+        <div class="grid2">
+          <div class="field">
+            <label for="title">Titel</label>
+            <input type="text" id="title" required />
+          </div>
+          <div class="field">
+            <label for="servings">Portionen</label>
+            <input type="number" id="servings" min="1" max="100" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="tags">Schlagworte (mit Komma getrennt)</label>
+          <input type="text" id="tags" placeholder="mittag, vegetarisch" />
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Zutaten</h2>
+        <div id="ingredients"></div>
+        <button type="button" class="secondary" id="add-ingredient">
+          + Zutat
+        </button>
+      </section>
+
+      <section class="card">
+        <h2>Schritte</h2>
+        <div id="steps"></div>
+        <div class="row">
+          <button type="button" class="secondary" data-add="machine">
+            + Maschine
+          </button>
+          <button type="button" class="secondary" data-add="user">
+            + Handgriff
+          </button>
+          <button type="button" class="secondary" data-add="weigh">
+            + Abwiegen
+          </button>
+          <button type="button" class="secondary" data-add="wait">
+            + Warten
+          </button>
+        </div>
+      </section>
+
+      <section class="card notice warn" id="problems" hidden></section>
+      <div class="notice" id="message" role="status" hidden></div>
+
+      <div class="row">
+        <button type="button" id="save">Speichern</button>
+        <button type="button" class="secondary" id="cook" hidden>
+          Speichern und kochen
+        </button>
+        <a class="button secondary" href="/recipes">Zurück zur Liste</a>
+      </div>
+    </main>
+
+    <script src="/static/nav.js"></script>
+    <script src="/static/api.js"></script>
+    <script>
+      const KINDS = {
+        machine: "Maschine",
+        user: "Handgriff",
+        weigh: "Abwiegen",
+        wait: "Warten",
+      };
+      let recipe = { title: "", tags: [], ingredients: [], steps: [] };
+
+      const nextId = (prefix, items) => {
+        let n = items.length + 1;
+        while (items.some((x) => x.id === `${prefix}${n}`)) n++;
+        return `${prefix}${n}`;
+      };
+      const num = (value) =>
+        value === "" || value == null ? null : Number(value);
+      // "3" = 3 minutes, "1:30" = 1 min 30 s, "0:05" = 5 s
+      const parseDuration = (text) => {
+        const [m, s] = text.trim().replace(",", ".").split(":");
+        const seconds =
+          s === undefined ? Number(m) * 60 : Number(m) * 60 + Number(s);
+        return Number.isFinite(seconds) && seconds > 0
+          ? Math.round(seconds)
+          : null;
+      };
+      function durationInput(owner) {
+        return input(
+          {
+            type: "text",
+            inputmode: "numeric",
+            placeholder: "m:ss",
+            value: owner.duration_s ? clock(owner.duration_s) : "",
+          },
+          (t) => {
+            const seconds = parseDuration(t.value);
+            t.setCustomValidity(seconds ? "" : "Dauer als Minuten oder m:ss");
+            if (seconds) owner.duration_s = seconds;
+          },
+        );
+      }
+
+      function show(kind, text) {
+        $("message").className = `notice ${kind}`;
+        $("message").textContent = text;
+        $("message").hidden = false;
+      }
+
+      function input(props, onchange) {
+        return el("input", { ...props, oninput: (e) => onchange(e.target) });
+      }
+
+      function renderIngredients() {
+        $("ingredients").replaceChildren(
+          ...recipe.ingredients.map((ing, index) =>
+            el(
+              "div",
+              { class: "ingredient" },
+              el(
+                "code",
+                { title: "Im Schritttext als {" + ing.id + "} einsetzbar" },
+                ing.id,
+              ),
+              input(
+                {
+                  type: "text",
+                  value: ing.name,
+                  placeholder: "Zutat",
+                  "aria-label": "Zutat",
+                },
+                (t) => {
+                  ing.name = t.value;
+                  renderSteps();
+                },
+              ),
+              input(
+                {
+                  type: "number",
+                  value: ing.amount ?? "",
+                  min: 0,
+                  step: "any",
+                  placeholder: "Menge",
+                  "aria-label": "Menge",
+                },
+                (t) => (ing.amount = num(t.value)),
+              ),
+              input(
+                {
+                  type: "text",
+                  value: ing.unit ?? "",
+                  placeholder: "g, ml, Stk",
+                  "aria-label": "Einheit",
+                },
+                (t) => (ing.unit = t.value || null),
+              ),
+              el(
+                "button",
+                {
+                  type: "button",
+                  class: "secondary danger",
+                  "aria-label": "Zutat entfernen",
+                  onclick: () => {
+                    recipe.ingredients.splice(index, 1);
+                    renderIngredients();
+                    renderSteps();
+                  },
+                },
+                "✕",
+              ),
+            ),
+          ),
+        );
+      }
+
+      function machineFields(step) {
+        const m = step.machine;
+        m.speed ??= null;
+        return el(
+          "div",
+          { class: "machine" },
+          el(
+            "label",
+            {},
+            "Temperatur °C (leer: ohne Hitze)",
+            input(
+              { type: "number", min: 35, max: 150, value: m.temp_c ?? "" },
+              (t) => (m.temp_c = num(t.value)),
+            ),
+          ),
+          el("label", {}, "Dauer (m:ss)", durationInput(m)),
+          el(
+            "label",
+            {},
+            "Stufe (1–20, leer: aus)",
+            input(
+              { type: "number", min: 1, max: 20, value: m.speed?.level ?? "" },
+              (t) => {
+                const level = num(t.value);
+                m.speed = level
+                  ? {
+                      level,
+                      of: 20,
+                      direction: m.speed?.direction ?? "forward",
+                    }
+                  : null;
+              },
+            ),
+          ),
+          el(
+            "label",
+            { class: "check" },
+            input(
+              { type: "checkbox", checked: m.speed?.direction === "reverse" },
+              (t) => {
+                if (m.speed)
+                  m.speed.direction = t.checked ? "reverse" : "forward";
+              },
+            ),
+            "Rückwärts",
+          ),
+        );
+      }
+
+      function weighFields(step) {
+        return el(
+          "div",
+          { class: "weigh" },
+          el(
+            "label",
+            {},
+            "Zutat",
+            el(
+              "select",
+              { onchange: (e) => (step.ingredient = e.target.value || null) },
+              el("option", { value: "" }, "–"),
+              recipe.ingredients.map((i) =>
+                el(
+                  "option",
+                  { value: i.id, selected: i.id === step.ingredient },
+                  i.name || i.id,
+                ),
+              ),
+            ),
+          ),
+          el(
+            "label",
+            {},
+            "Menge in g",
+            input(
+              { type: "number", min: 1, max: 5000, value: step.target_g ?? "" },
+              (t) => (step.target_g = num(t.value)),
+            ),
+          ),
+        );
+      }
+
+      function waitFields(step) {
+        return el(
+          "label",
+          { class: "field" },
+          "Wartezeit (m:ss)",
+          durationInput(step),
+        );
+      }
+
+      function renderSteps() {
+        $("steps").replaceChildren(
+          ...recipe.steps.map((step, index) => {
+            const textArea = el(
+              "textarea",
+              {
+                placeholder: "Anleitung, z. B. {i1} in den Topf geben.",
+                oninput: (e) => (step.text = e.target.value || null),
+              },
+              step.text ?? "",
+            );
+            const move = (delta) => {
+              const [moved] = recipe.steps.splice(index, 1);
+              recipe.steps.splice(index + delta, 0, moved);
+              renderSteps();
+            };
+            return el(
+              "div",
+              { class: "step" },
+              el(
+                "header",
+                {},
+                el("strong", {}, `${index + 1}. ${KINDS[step.kind]}`),
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "secondary",
+                    disabled: index === 0,
+                    "aria-label": "Nach oben",
+                    onclick: () => move(-1),
+                  },
+                  "↑",
+                ),
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "secondary",
+                    disabled: index === recipe.steps.length - 1,
+                    "aria-label": "Nach unten",
+                    onclick: () => move(1),
+                  },
+                  "↓",
+                ),
+                el(
+                  "button",
+                  {
+                    type: "button",
+                    class: "secondary danger",
+                    "aria-label": "Schritt entfernen",
+                    onclick: () => {
+                      recipe.steps.splice(index, 1);
+                      renderSteps();
+                    },
+                  },
+                  "✕",
+                ),
+              ),
+              input(
+                {
+                  type: "text",
+                  value: step.title ?? "",
+                  placeholder: "Kurztitel (optional)",
+                },
+                (t) => (step.title = t.value || null),
+              ),
+              step.kind === "machine" ? machineFields(step) : null,
+              step.kind === "weigh" ? weighFields(step) : null,
+              step.kind === "wait" ? waitFields(step) : null,
+              textArea,
+              recipe.ingredients.length
+                ? el(
+                    "div",
+                    { class: "chips" },
+                    recipe.ingredients.map((i) =>
+                      el(
+                        "button",
+                        {
+                          type: "button",
+                          class: "chip",
+                          title: "In den Text einsetzen",
+                          onclick: () => {
+                            textArea.setRangeText(
+                              `{${i.id}}`,
+                              textArea.selectionStart,
+                              textArea.selectionEnd,
+                              "end",
+                            );
+                            step.text = textArea.value;
+                            textArea.focus();
+                          },
+                        },
+                        `+ ${i.name || i.id}`,
+                      ),
+                    ),
+                  )
+                : null,
+            );
+          }),
+        );
+      }
+
+      function addStep(kind) {
+        const step = { id: nextId("s", recipe.steps), kind };
+        if (kind === "machine")
+          step.machine = {
+            temp_c: null,
+            duration_s: 60,
+            speed: { level: 2, of: 20, direction: "forward" },
+          };
+        if (kind === "weigh") step.target_g = 100;
+        if (kind === "wait") step.duration_s = 300;
+        recipe.steps.push(step);
+        renderSteps();
+      }
+
+      function fromForm() {
+        recipe.title = $("title").value.trim();
+        recipe.servings = num($("servings").value);
+        recipe.tags = $("tags")
+          .value.split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+        return recipe;
+      }
+
+      function showProblems(problems) {
+        $("problems").hidden = !problems.length;
+        $("problems").replaceChildren(
+          el("strong", {}, "So kann Bimbi das Rezept nicht kochen:"),
+          el(
+            "ul",
+            { class: "problems" },
+            problems.map((p) => el("li", {}, p)),
+          ),
+        );
+      }
+
+      // Imported drafts already carry an id, so "has an id" does not mean "stored".
+      let persisted = false;
+
+      async function save() {
+        const body = fromForm();
+        const result = persisted
+          ? await api(`/api/recipes/${body.id}`, { method: "PUT", json: body })
+          : await api("/api/recipes", { method: "POST", json: body });
+        persisted = true;
+        $("draft-notes").hidden = true;
+        recipe = result.recipe;
+        // The inputs must edit the saved copy from now on.
+        renderIngredients();
+        renderSteps();
+        history.replaceState(null, "", `/recipes/edit?id=${recipe.id}`);
+        $("heading").textContent = recipe.title;
+        $("cook").hidden = false;
+        showProblems(result.problems);
+        return result;
+      }
+
+      $("save").addEventListener("click", async () => {
+        try {
+          const result = await save();
+          show(result.problems.length ? "warn" : "ok", "Gespeichert.");
+        } catch (err) {
+          show("error", err.message);
+        }
+      });
+
+      $("cook").addEventListener("click", async () => {
+        try {
+          await save();
+          await api("/api/cook", {
+            method: "POST",
+            json: { recipe_id: recipe.id },
+          });
+          location.href = "/cook";
+        } catch (err) {
+          show("error", err.message);
+        }
+      });
+
+      $("add-ingredient").addEventListener("click", () => {
+        recipe.ingredients.push({
+          id: nextId("i", recipe.ingredients),
+          name: "",
+          amount: null,
+          unit: null,
+        });
+        renderIngredients();
+        renderSteps();
+      });
+      for (const button of document.querySelectorAll("[data-add]")) {
+        button.addEventListener("click", () => addStep(button.dataset.add));
+      }
+
+      async function init() {
+        const params = new URLSearchParams(location.search);
+        const id = params.get("id");
+        let draft = null;
+        if (params.has("draft")) {
+          try {
+            draft = JSON.parse(sessionStorage.getItem("opencook-import"));
+            sessionStorage.removeItem("opencook-import");
+          } catch {}
+        }
+        if (draft) {
+          recipe = draft.recipe;
+          $("heading").textContent = `Import: ${recipe.title}`;
+          showProblems(draft.problems);
+          $("draft-notes").replaceChildren(
+            el("strong", {}, "Umgewandelt – bitte prüfen und dann speichern."),
+            draft.warnings.length
+              ? el(
+                  "ul",
+                  {},
+                  draft.warnings.map((w) => el("li", {}, w)),
+                )
+              : null,
+          );
+          $("draft-notes").hidden = false;
+        } else if (id) {
+          persisted = true;
+          const result = await api(`/api/recipes/${id}`);
+          recipe = result.recipe;
+          // The editor works on Bimbi's 20 levels; convert other scales once.
+          for (const step of recipe.steps) {
+            const speed = step.machine?.speed;
+            if (speed && speed.of !== 20) {
+              speed.level = Math.max(
+                1,
+                Math.min(20, Math.round((speed.level / speed.of) * 20)),
+              );
+              speed.of = 20;
+            }
+          }
+          $("heading").textContent = recipe.title;
+          $("cook").hidden = false;
+          showProblems(result.problems);
+        } else {
+          addStep("user");
+          addStep("machine");
+        }
+        $("title").value = recipe.title;
+        $("servings").value = recipe.servings ?? "";
+        $("tags").value = recipe.tags.join(", ");
+        renderIngredients();
+        renderSteps();
+      }
+      init().catch((err) => show("error", err.message));
+    </script>
+  </body>
+</html>

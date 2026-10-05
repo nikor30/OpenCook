@@ -8,7 +8,7 @@ FastAPI-Core + React-Web-GUI + Home Assistant (MQTT Discovery) + Rezept-Konverte
 Fahrplan & Phasen: **KICKSTART.md**. Protokollwissen: **docs/protocol/xiaomi-c3os.md**.
 
 ## Status
-- Aktuelle Phase: 1 (Recon) – Phase 0 (Setup) erledigt 2026-10-05; Read-only-Webansicht läuft (core + Statusseite), HA-Integration `custom_components/opencook` (read-only)
+- Aktuelle Phase: 5/8 – Koch-Modus (Runner) läuft; Read-only-Webansicht, HA-Integration, Statistik. Phase 0 erledigt 2026-10-05
 - Offene Kernfragen: Q1 recipe-command-Format, Q3 Rückwärtslauf per API, Q4 Speed-Mapping, Q7 Live-Gewicht
   (Details KICKSTART.md §1)
 
@@ -77,3 +77,16 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
 - 2026-10-05: Repo heißt jetzt `nikor30/OpenCook` (vorher `cookingrobots`, GitHub leitet um). Compose-Projektname fest
   `opencook` → Container `opencook-core-1`, Volume `opencook_opencook-data`. Altes Volume `cookingrobots_opencook-data`
   ist nur noch Sicherungskopie.
+- 2026-10-05: E7: `start-recipe-cook` mit Rezept-ID (5 Formate) → code 0, keine Wirkung. Lokales Starten ist nicht möglich →
+  Koch-Modus: OpenCook zeigt Schritt + Display-Einstellungen, Nutzer startet am Gerät, Runner folgt dem Status
+  (1/3 läuft, 11 fertig → weiter, 0 nach Lauf → „gestoppt“). ORF-Modelle in `opencook/recipes/models.py`,
+  Schema `schemas/orf-v1.json` per `python -m opencook.recipes.schema` (Test prüft Aktualität).
+  Geräte-Limits in `recipes/c3os.py` (35–150 °C manuell, >80 °C max. Stufe 6) blockieren den Start.
+- 2026-10-05: Rezeptwelt (§ 2 Abs. 2) und MixBuch (§ 9) verbieten automatisches Auslesen → keine Abholung von dort,
+  auch nicht „nur ein paar“. Import nur per vom Nutzer eingefügtem Text; Testdaten selbst schreiben.
+- 2026-10-05: FastAPI ≥0.142 kapselt `include_router` (`_IncludedRouter`) – Routen über `app.openapi()` prüfen,
+  nicht über `app.routes`.
+- 2026-10-05: Text-Import `converters/thermomix_text.py`: TM-Stufe ×2 auf 20er-Skala (Annahme, Q4 offen), Linkslauf →
+  reverse, Sanftrührstufe → 1, Varoma → 120 °C + steamer (Warnung), Teig/Knet → 4, Turbo → 20 (Warnung).
+  `POST /api/import/text` liefert nur eine Vorschau; der Editor speichert. Testrezepte: core/tests/fixtures/thermomix_text
+  (selbst geschrieben, CC0).

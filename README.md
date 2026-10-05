@@ -1,8 +1,8 @@
 # OpenCook
 
 Lokale, cloudfreie Anbindung des **Xiaomi Smart Cooking Robot** (EU, `chunmi.mfcp.c3os`):
-Live-Status im Browser und in Home Assistant, Koch- und Reinigungsstatistik – alles in einem
-Docker-Container im eigenen Netz.
+eigene Rezepte mit geführtem Koch-Modus, Live-Status im Browser und in Home Assistant, Koch- und
+Reinigungsstatistik – alles in einem Docker-Container im eigenen Netz.
 
 > **Nur lesend.** Das Gerät quittiert Schreibbefehle über die lokale Schnittstelle, führt sie aber
 > nicht aus (siehe [Protokoll](docs/protocol/xiaomi-c3os.md)). OpenCook liest deshalb nur und
@@ -15,6 +15,11 @@ Docker-Container im eigenen Netz.
 
 ## Funktionen
 
+- **Eigene Rezepte:** Editor für Zutaten und Schritte (Maschine, Handgriff, Abwiegen, Warten),
+  Import aus eingefügtem Text in Thermomix-Schreibweise, Austausch als ORF-Datei (JSON).
+- **Koch-Modus:** zeigt jeden Schritt groß an – bei Maschinenschritten Temperatur, Zeit und Stufe zum
+  Einstellen am Display. OpenCook erkennt am Gerätestatus, wann der Schritt läuft und fertig ist,
+  und springt zum nächsten. Gedacht für ein Tablet neben dem Gerät.
 - **Live:** Status (Bereit, Kocht, Pausiert, Fertig, Nicht erreichbar), Restzeit und Rezept,
   sekündlich aktualisiert. Optional Debug-Werte: Rezept-ID, Typ, Modus und alle Rohwerte.
 - **Statistik:** Kochvorgänge, fertig gekochte Rezepte, gesamte Kochzeit, häufigste Rezepte,
@@ -66,12 +71,37 @@ nie wieder über die API ausgegeben.
 **Hinweis:** Die Weboberfläche hat keine Anmeldung. Jeder im Netz kann den Status sehen und die
 Einstellungen ändern. Nicht ins Internet freigeben.
 
+## Rezepte und Koch-Modus
+
+Das Gerät lässt sich nicht fernstarten (Experimente E6/E7). Der Koch-Modus führt deshalb durch das
+Rezept: Du stellst die angezeigten Werte im manuellen Modus am Display ein und drückst Start;
+OpenCook sieht den Start, die Pause und das Ende und zeigt dann den nächsten Schritt. Werte
+außerhalb der Gerätegrenzen (35–150 °C, über 80 °C höchstens Stufe 6) werden beim Speichern
+angezeigt und blockieren das Kochen.
+
+**Rezepte importieren:** Unter Rezepte → *Text einfügen* den Rezepttext (Titel, Zutaten,
+Zubereitung) einfügen. Angaben wie `10 Min./100°C/Linkslauf/Stufe 1` werden zu Maschinenschritten:
+
+| Thermomix | Bimbi |
+| --- | --- |
+| Stufe 1–10 (auch halbe Stufen) | Stufe 2–20 (verdoppelt; lineare Annahme, echtes Mapping noch offen) |
+| Linkslauf | rückwärts |
+| Sanftrührstufe | Stufe 1 |
+| Varoma | 120 °C mit Dampfaufsatz – wird zum Prüfen markiert |
+| Teig-Modus / Knetstufe, Turbo | Stufe 4 bzw. 20 – wird zum Prüfen markiert |
+
+Das Ergebnis öffnet sich im Editor zum Prüfen, bevor es gespeichert wird. OpenCook ruft dafür
+keine Webseiten ab: Rezeptseiten wie Rezeptwelt oder MixBuch verbieten automatisches Auslesen in
+ihren Nutzungsbedingungen. Kopierte Rezepte sind nur für den privaten Gebrauch; Bilder werden nicht
+übernommen. Ein Beispielrezept liegt in [docs/examples](docs/examples/).
+
 ## Wie gezählt wird
 
 Das Gerät meldet nur, *dass* es läuft und welches Rezept geladen ist. Ein Kochvorgang reicht
 deshalb vom ersten Start bis 15 Minuten Ruhe oder bis ein anderes Rezept startet; mehrere Schritte
 eines Rezepts zählen als ein Vorgang. Als Kochzeit zählt nur die Zeit mit laufender Maschine.
-Reinigungsprogramme erkennt OpenCook am Namen („Reinigung“).
+Reinigungsprogramme erkennt OpenCook am Namen („Reinigung“). Manuelle Läufe im Koch-Modus zählen
+als das gekochte Rezept.
 
 ## Entwicklung
 
@@ -90,6 +120,10 @@ Oder im Devcontainer (`.devcontainer/`), der alles mitbringt. Projektregeln und 
 | --- | --- |
 | `core/opencook/drivers/xiaomi_c3os/` | Read-only-Treiber (miIO, nur `get_properties`) |
 | `core/opencook/history/` | Erkennung und Speicherung der Kochvorgänge, Statistik |
+| `core/opencook/recipes/` | Rezeptformat ORF, Speicherung, Gerätegrenzen |
+| `core/opencook/runner/` | Ablauf des Koch-Modus |
+| `core/opencook/converters/` | Import aus Thermomix-Text |
+| `schemas/orf-v1.json` | JSON-Schema des Rezeptformats (generiert) |
 | `core/opencook/api/` | FastAPI-App und Weboberfläche |
 | `custom_components/opencook/` | Home-Assistant-Integration |
 | `docs/protocol/` | Was über das Geräteprotokoll bekannt ist |

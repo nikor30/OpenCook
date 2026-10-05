@@ -1,0 +1,100 @@
+{
+  "orf_version": 1,
+  "title": "Kartoffelsuppe",
+  "servings": 4,
+  "tags": ["mittag", "vegetarisch"],
+  "source": {
+    "type": "manual",
+    "origin": "OpenCook-Beispiel",
+    "license": "CC0-1.0"
+  },
+  "ingredients": [
+    { "id": "i1", "name": "Zwiebel", "amount": 1, "unit": "pcs" },
+    { "id": "i2", "name": "Butter", "amount": 20, "unit": "g" },
+    {
+      "id": "i3",
+      "name": "Kartoffeln, mehligkochend",
+      "amount": 600,
+      "unit": "g"
+    },
+    { "id": "i4", "name": "Gemüsebrühe", "amount": 800, "unit": "ml" },
+    { "id": "i5", "name": "Sahne", "amount": 100, "unit": "ml" }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "kind": "user",
+      "title": "Zwiebel einfüllen",
+      "text": "{i1} halbieren und in den Topf geben. Deckel schließen."
+    },
+    {
+      "id": "s2",
+      "kind": "machine",
+      "title": "Zwiebel hacken",
+      "text": "Zwiebel zerkleinern.",
+      "machine": {
+        "temp_c": null,
+        "duration_s": 5,
+        "speed": { "level": 10, "of": 20 }
+      }
+    },
+    {
+      "id": "s3",
+      "kind": "weigh",
+      "title": "Butter abwiegen",
+      "ingredient": "i2",
+      "target_g": 20,
+      "text": "{i2} zur Zwiebel geben."
+    },
+    {
+      "id": "s4",
+      "kind": "machine",
+      "title": "Andünsten",
+      "machine": {
+        "temp_c": 120,
+        "duration_s": 180,
+        "speed": { "level": 2, "of": 20, "direction": "reverse" }
+      }
+    },
+    {
+      "id": "s5",
+      "kind": "user",
+      "title": "Kartoffeln und Brühe",
+      "text": "{i3} schälen, würfeln und mit {i4} in den Topf geben."
+    },
+    {
+      "id": "s6",
+      "kind": "machine",
+      "title": "Kochen",
+      "machine": {
+        "temp_c": 100,
+        "duration_s": 1200,
+        "speed": { "level": 1, "of": 20, "direction": "reverse" }
+      }
+    },
+    {
+      "id": "s7",
+      "kind": "wait",
+      "title": "Etwas abkühlen lassen",
+      "duration_s": 120,
+      "text": "Messbecher abnehmen, damit Dampf entweichen kann."
+    },
+    {
+      "id": "s8",
+      "kind": "user",
+      "title": "Sahne zugeben",
+      "text": "{i5} zugeben, mit Salz und Pfeffer abschmecken."
+    },
+    {
+      "id": "s9",
+      "kind": "machine",
+      "title": "Pürieren",
+      "text": "Langsam hochdrehen.",
+      "machine": {
+        "temp_c": null,
+        "duration_s": 40,
+        "speed": { "level": 12, "of": 20 }
+      }
+    }
+  ]
+}

@@ -264,3 +264,55 @@ button:disabled {
 .notice.error {
   background: color-mix(in srgb, var(--danger) 15%, transparent);
 }
+
+/* Buttons and layout helpers */
+.button {
+  display: inline-block;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 1.4;
+}
+button.secondary,
+.button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+button.danger,
+.button.danger {
+  color: var(--danger);
+}
+button.big {
+  font-size: 1.2rem;
+  padding: 16px 28px;
+}
+.stack {
+  display: grid;
+  gap: 12px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+input[type="number"],
+select,
+textarea {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  width: 100%;
+}
+textarea {
+  min-height: 72px;
+  resize: vertical;
+}

@@ -1,5 +1,5 @@
-"""Status API and web view. The cooker is only ever read; the only writable thing is the
-local configuration (device address, token, UI options). Start with:
+"""Status API and web view. The cooker is only ever read; writable is only local data
+(configuration, recipes, the cook-mode run). Start with:
 
 uvicorn --factory opencook.api.app:create_app --host 0.0.0.0 --port 8080
 """
@@ -21,8 +21,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from opencook.api.cooking import CookController, make_router
+from opencook.db import make_engine
 from opencook.drivers.base import CookerReader, CookerState
 from opencook.history import HistoryStore, SessionTracker, Stats
+from opencook.recipes.store import RecipeStore
 from opencook.settings import DeviceSettings, SettingsStore, SettingsUpdate, SettingsView
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -62,6 +65,8 @@ class StatePoller:
         self._offline_interval_s = offline_interval_s
         self._wake = asyncio.Event()
         self.latest = CookerState(reachable=False, updated_at=datetime.now(UTC))
+        self.listeners: list[Callable[[CookerState], None]] = []
+        self.history_view: Callable[[CookerState], CookerState] = lambda state: state
 
     def set_reader(self, reader: CookerReader) -> None:
         self._reader = reader
@@ -69,7 +74,9 @@ class StatePoller:
 
     async def poll_once(self) -> CookerState:
         self.latest = await self._reader.read_state()
-        self._record(self.latest)
+        for listener in self.listeners:
+            listener(self.latest)
+        self._record(self.history_view(self.latest))
         return self.latest
 
     def _record(self, state: CookerState) -> None:
@@ -100,18 +107,18 @@ class SettingsResult(BaseModel):
     reachable: bool
 
 
-def _store_from_env() -> HistoryStore:
-    db_path = os.environ.get("OC_DB_PATH")
-    return HistoryStore.from_path(Path(db_path)) if db_path else HistoryStore.in_memory()
-
-
 def create_app(
     *,
     reader_factory: ReaderFactory = xiaomi_reader,
     store: HistoryStore | None = None,
+    recipes: RecipeStore | None = None,
     settings_store: SettingsStore | None = None,
 ) -> FastAPI:
-    store = store or _store_from_env()
+    if store is None or recipes is None:
+        db_path = os.environ.get("OC_DB_PATH")
+        engine = make_engine(Path(db_path) if db_path else None)
+        store = store or HistoryStore(engine)
+        recipes = recipes or RecipeStore(engine)
     settings_store = settings_store or SettingsStore.from_env()
     timezone = ZoneInfo(os.environ.get("OC_TIMEZONE", "Europe/Berlin"))
 
@@ -124,6 +131,9 @@ def create_app(
         interval_s=float(os.environ.get("OC_POLL_INTERVAL", "1")),
         offline_interval_s=float(os.environ.get("OC_OFFLINE_POLL_INTERVAL", "10")),
     )
+    cook = CookController(recipes)
+    poller.listeners.append(cook.on_state)
+    poller.history_view = cook.history_name
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -137,6 +147,7 @@ def create_app(
 
     app = FastAPI(title="OpenCook", lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.include_router(make_router(recipes, cook))
 
     @app.get("/api/state")
     async def get_state() -> CookerState:
@@ -167,7 +178,14 @@ def create_app(
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
-    pages = {"/": "index.html", "/stats": "stats.html", "/settings": "settings.html"}
+    pages = {
+        "/": "index.html",
+        "/recipes": "recipes.html",
+        "/recipes/edit": "recipe-edit.html",
+        "/cook": "cook.html",
+        "/stats": "stats.html",
+        "/settings": "settings.html",
+    }
     for path, filename in pages.items():
         app.add_api_route(path, _page(filename), include_in_schema=False, methods=["GET"])
 
