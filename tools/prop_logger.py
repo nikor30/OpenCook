@@ -21,31 +21,7 @@ from typing import Any
 
 from miio import Device, DeviceException
 
-# (siid, piid) per docs/protocol/xiaomi-c3os.md, including the reserved siid 4 piid 6-9.
-PROPERTIES: tuple[tuple[int, int], ...] = (
-    *((2, piid) for piid in (1, 2, 3, 4, 5, 10)),
-    (3, 1),
-    (3, 2),
-    *((4, piid) for piid in range(3, 15)),
-)
-CHUNK_SIZE = 10
-
-
-def device_id(device: Device) -> str:
-    """The device rejects every property request (-4007) unless `did` is its real device id."""
-    raw = device.send_handshake().header.value.device_id
-    return str(int.from_bytes(raw, "big"))
-
-
-def read_properties(device: Device, did: str) -> dict[str, Any]:
-    values: dict[str, Any] = {}
-    for start in range(0, len(PROPERTIES), CHUNK_SIZE):
-        chunk = PROPERTIES[start : start + CHUNK_SIZE]
-        request = [{"did": did, "siid": siid, "piid": piid} for siid, piid in chunk]
-        for item in device.send("get_properties", request):
-            key = f"{item['siid']}.{item['piid']}"
-            values[key] = item["value"] if item.get("code") == 0 else {"code": item.get("code")}
-    return values
+from opencook.drivers.xiaomi_c3os.protocol import device_id, read_properties
 
 
 def parse_args() -> argparse.Namespace:

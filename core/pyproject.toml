@@ -8,10 +8,17 @@ description = "Local, cloud-free control of the Xiaomi Smart Cooking Robot (chun
 license = "Apache-2.0"
 requires-python = ">=3.12"
 dynamic = ["version"]
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2.8",
+    # `genericmiot` and current fixes only exist on master; 0.5.x is outdated.
+    "python-miio @ git+https://github.com/rytilahti/python-miio.git@9a00e0888ef85f8d8d84888cabd9e46d1b0a18df",
+    "uvicorn[standard]>=0.30",
+]
 
 [project.optional-dependencies]
 dev = [
+    "httpx>=0.27",
     "hypothesis>=6.100",
     "mypy>=1.11",
     "pre-commit>=4.0",
@@ -19,6 +26,9 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.16",
 ]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.version]
 path = "opencook/__init__.py"
