@@ -67,4 +67,5 @@ python tools/prop_logger.py            # Properties live mitloggen (ENV: OC_DEVI
   pytest-homeassistant-custom-component lässt sich mit Python 3.13 nicht installieren (pip backtrackt endlos).
 - 2026-10-05: Kochstatistik: `opencook.history` erkennt Kochvorgänge aus Statuswechseln (Lauf bis 15 min Ruhe oder anderes
   Rezept = 1 Vorgang) und speichert sie in SQLite (`OC_DB_PATH`, Docker-Volume `opencook-data`). `/api/stats` + Seite `/stats`.
-  Auch Geräteprogramme wie „Tiefenreinigung“ (cook-id 15) erscheinen als Vorgang.
+  Reinigungsprogramme (z. B. „Tiefenreinigung“, cook-id 15, cook-type 0 wie manuelle Läufe) nur am Namen erkennbar →
+  eigene Reinigungsstatistik (`is_cleaning`, Name enthält „reinig“/„clean“).

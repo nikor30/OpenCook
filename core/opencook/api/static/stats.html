@@ -204,9 +204,43 @@
         </table>
       </section>
 
+      <h1>Reinigung</h1>
+
+      <section class="card kpis">
+        <div class="kpi">
+          <div class="value" id="clean-total">–</div>
+          <div class="label">Reinigungen</div>
+        </div>
+        <div class="kpi">
+          <div class="value" id="clean-last">–</div>
+          <div class="label">zuletzt gereinigt</div>
+        </div>
+        <div class="kpi">
+          <div class="value" id="clean-since">–</div>
+          <div class="label">Kochvorgänge seither</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Programme</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Programm</th>
+              <th class="num">Anzahl</th>
+              <th class="num">davon fertig</th>
+              <th class="num">Zuletzt</th>
+            </tr>
+          </thead>
+          <tbody id="clean-programs"></tbody>
+        </table>
+      </section>
+
       <p class="muted">
         Ein Kochvorgang reicht vom ersten Start bis 15 Minuten Ruhe oder bis ein
         anderes Rezept startet. Kochzeit zählt nur Zeit mit laufender Maschine.
+        Reinigungsprogramme (Name enthält „Reinigung“) zählen nur unter
+        Reinigung.
       </p>
     </main>
 
@@ -229,6 +263,18 @@
           hour: "2-digit",
           minute: "2-digit",
         });
+      const daysAgo = (iso) => {
+        const startOfDay = (d) =>
+          new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const days = Math.round(
+          (startOfDay(new Date()) - startOfDay(new Date(iso))) / 86400000,
+        );
+        return days === 0
+          ? "heute"
+          : days === 1
+            ? "gestern"
+            : `vor ${days} Tagen`;
+      };
       const cell = (text, cls) => {
         const td = document.createElement("td");
         td.textContent = text;
@@ -308,6 +354,23 @@
                 ]),
               )
             : [emptyRow(4, "–")]),
+        );
+
+        const c = s.cleaning;
+        $("clean-total").textContent = c.total;
+        $("clean-last").textContent = c.last_at ? daysAgo(c.last_at) : "nie";
+        $("clean-since").textContent = c.cooks_since_last;
+        $("clean-programs").replaceChildren(
+          ...(c.programs.length
+            ? c.programs.map((x) =>
+                row([
+                  cell(x.name),
+                  cell(x.count, "num"),
+                  cell(x.completed, "num"),
+                  cell(dateTime(x.last_cooked_at), "num"),
+                ]),
+              )
+            : [emptyRow(4, "Noch keine Reinigung erfasst.")]),
         );
       }
       load();

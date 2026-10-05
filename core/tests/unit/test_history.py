@@ -150,3 +150,30 @@ def test_open_session_is_resumed_after_restart() -> None:
     assert resumed is not None
     assert resumed.name == "Kartoffelbrei"
     assert resumed.started_at == T0
+
+
+def test_cleaning_programs_have_their_own_stats() -> None:
+    store = HistoryStore.in_memory()
+    tracker = SessionTracker()
+    gap = int(IDLE_GAP.total_seconds()) + 10
+    states = [
+        *[state(t, 1) for t in range(11)],
+        state(11, 11),
+        *[state(gap + t, 1, cook_id=15, name="Tiefenreinigung") for t in range(21)],
+        state(gap + 21, 11),
+        *[state(2 * gap + t, 1, cook_id=1474, name="Reis") for t in range(6)],
+    ]
+    for s in states:
+        for changed in tracker.update(s):
+            store.save(changed)
+
+    stats = store.stats(now=T0 + timedelta(hours=2))
+
+    assert stats.total == 2
+    assert [r.name for r in stats.recipes] == ["Reis", "Kartoffelbrei"]  # same count: newest first
+    assert all(s.name != "Tiefenreinigung" for s in stats.recent)
+    assert stats.cleaning.total == 1
+    assert stats.cleaning.completed == 1
+    assert stats.cleaning.programs[0].name == "Tiefenreinigung"
+    assert stats.cleaning.last_at == T0 + timedelta(seconds=gap)
+    assert stats.cleaning.cooks_since_last == 1
